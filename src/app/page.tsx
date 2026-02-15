@@ -43,6 +43,7 @@ export default function Home() {
   const [swipedIds, setSwipedIds] = useState<Set<string>>(new Set())
   const [swipedIdsLoaded, setSwipedIdsLoaded] = useState(false)
   const [showGroupPicker, setShowGroupPicker] = useState(false)
+  const [members, setMembers] = useState<{ id: string, display_name: string }[]>([])
 
   // ── Auth gates ──
   // ... (auth loading check not shown in partial replace context, keep existing) ...
@@ -58,6 +59,23 @@ export default function Home() {
       setPage(1)
       setHasMore(true)
       setSwipedIdsLoaded(false)
+
+      // Fetch group members for the filter panel
+      const fetchMembers = async () => {
+        const { data } = await supabase
+          .from('group_members')
+          .select('user_id, profiles(display_name)')
+          .eq('group_id', groupId)
+
+        if (data) {
+          const m = data.map((d: any) => ({
+            id: d.user_id,
+            display_name: d.profiles?.display_name || 'Anonymous'
+          }))
+          setMembers(m)
+        }
+      }
+      fetchMembers()
     }
   }, [groupId])
 
@@ -76,6 +94,7 @@ export default function Home() {
     if (f.language) params.set('language', f.language)
     if (f.newReleases) params.set('newReleases', 'true')
     if (f.familyLiked) params.set('familyLiked', 'true')
+    if (f.likedByMember) params.set('likedByMember', f.likedByMember)
     if (f.isFree) params.set('isFree', 'true')
     if (f.isClassic) params.set('isClassic', 'true')
     if (f.sortBy !== 'popularity.desc') params.set('sortBy', f.sortBy)
@@ -509,6 +528,7 @@ export default function Home() {
         <FilterPanel
           filters={pendingFilters}
           onChange={setPendingFilters}
+          members={members}
           onClose={() => setShowFilters(false)}
           onApply={applyFilters}
         />

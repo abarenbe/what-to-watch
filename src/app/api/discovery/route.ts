@@ -72,20 +72,29 @@ export async function GET(request: Request) {
         isFree: searchParams.get('isFree') || undefined, // "true" or "false"
         isClassic: searchParams.get('isClassic') || undefined, // "true" or "false"
         familyLiked: searchParams.get('familyLiked') || undefined,
+        likedByMember: searchParams.get('likedByMember') || undefined,
     }
 
     // --- Special Mode: Family Liked ---
     // If filtering by family likes, we query our DB for items others liked,
     // then hydrate those specific IDs from TMDB.
-    if (filters.familyLiked === 'true' && groupId && userId) {
+    if ((filters.familyLiked === 'true' || filters.likedByMember) && groupId && userId) {
         try {
             // 1. Get IDs liked by others in this group
-            const { data: likedSwipes } = await client
+            let queryBuilder = client
                 .from('swipes')
                 .select('movie_id, media_type')
                 .eq('group_id', groupId)
-                .neq('user_id', userId)
                 .gte('score', 2) // Liked (+) or Must Watch (++)
+
+            // Filter by specific member or "others"
+            if (filters.likedByMember) {
+                queryBuilder = queryBuilder.eq('user_id', filters.likedByMember)
+            } else {
+                queryBuilder = queryBuilder.neq('user_id', userId)
+            }
+
+            const { data: likedSwipes } = await queryBuilder
 
             if (!likedSwipes || likedSwipes.length === 0) {
                 return NextResponse.json({ results: [], page: 1, total_pages: 1 })
@@ -125,10 +134,14 @@ export async function GET(request: Request) {
             })
         } catch (error) {
             console.error('Family Liked Discovery Error:', error)
-            // Fall through to normal discovery if this fails? 
-            // Or return error? Let's return error for clarity.
             return NextResponse.json({ error: 'Failed to fetch family likes' }, { status: 500 })
         }
+    }
+
+    // If familyLiked was requested but we didn't have the context (groupId/userId), 
+    // we should probably or return empty instead of general discovery to avoid confusion.
+    if (filters.familyLiked === 'true' || filters.likedByMember) {
+        return NextResponse.json({ results: [], page: 1, total_pages: 1, message: 'Select a group to see family likes' })
     }
 
     try {

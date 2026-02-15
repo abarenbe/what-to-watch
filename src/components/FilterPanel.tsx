@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { X, Sparkles, Clock, Star, Baby, SlidersHorizontal, Languages } from 'lucide-react'
+import { X, Sparkles, Clock, Star, Baby, SlidersHorizontal, Languages, Users } from 'lucide-react'
 import styles from './FilterPanel.module.css'
 
 const GENRE_OPTIONS = [
@@ -58,6 +58,7 @@ export interface FilterState {
     language: string
     newReleases: boolean
     familyLiked: boolean
+    likedByMember?: string
     isFree: boolean
     isClassic: boolean
     sortBy: string
@@ -81,11 +82,12 @@ export const DEFAULT_FILTERS: FilterState = {
 interface FilterPanelProps {
     filters: FilterState
     onChange: (filters: FilterState) => void
+    members?: { id: string, display_name: string }[]
     onClose: () => void
     onApply: () => void
 }
 
-export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanelProps) => {
+export const FilterPanel = ({ filters, onChange, members = [], onClose, onApply }: FilterPanelProps) => {
     const update = (partial: Partial<FilterState>) => {
         onChange({ ...filters, ...partial })
     }
@@ -300,6 +302,32 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
                             </button>
                         </div>
                     </section>
+
+                    {/* Liked By Member */}
+                    {filters.familyLiked && members.length > 0 && (
+                        <section className={styles.section}>
+                            <h3 className={styles.sectionTitle}>
+                                <Users className="w-4 h-4" /> Liked By
+                            </h3>
+                            <div className={styles.chipRow}>
+                                <button
+                                    onClick={() => update({ likedByMember: undefined })}
+                                    className={`${styles.chip} ${!filters.likedByMember ? styles.chipActive : ''}`}
+                                >
+                                    Everyone Else
+                                </button>
+                                {members.map(m => (
+                                    <button
+                                        key={m.id}
+                                        onClick={() => update({ likedByMember: m.id })}
+                                        className={`${styles.chip} ${filters.likedByMember === m.id ? styles.chipActive : ''}`}
+                                    >
+                                        {m.display_name}
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
                     {/* Sort By */}
                     <section className={styles.section}>

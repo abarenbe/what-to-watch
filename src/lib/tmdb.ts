@@ -99,6 +99,7 @@ export interface DiscoveryFilters {
   isFree?: string      // New: "true" or "false"
   isClassic?: string   // New: "true" or "false"
   familyLiked?: string // New: "true" or "false"
+  likedByMember?: string // New: userId
   language?: string    // New: 'en', 'es', etc.
 }
 
