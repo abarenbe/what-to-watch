@@ -66,10 +66,9 @@ export default function Home() {
     if (f.query) params.set('query', f.query)
     params.set('type', f.type)
     if (f.genres.length > 0) params.set('genres', f.genres.join(','))
-    if (f.ageRating !== 'All Ages') params.set('ageRating', f.ageRating)
+    if (f.ageRating.length > 0) params.set('ageRating', f.ageRating.join(','))
     if (f.minRating) params.set('minRating', f.minRating)
-    if (f.maxRuntime) params.set('maxRuntime', f.maxRuntime)
-    if (f.minRuntime) params.set('minRuntime', f.minRuntime)
+    if (f.runtimes.length > 0) params.set('runtimes', f.runtimes.join(','))
     if (f.newReleases) params.set('newReleases', 'true')
     if (f.isFree) params.set('isFree', 'true')
     if (f.isClassic) params.set('isClassic', 'true')
@@ -230,9 +229,9 @@ export default function Home() {
   const activeFilterCount = [
     filters.type !== 'all',
     filters.genres.length > 0,
-    filters.ageRating !== 'All Ages',
+    filters.ageRating.length > 0,
     filters.minRating !== '',
-    filters.maxRuntime !== '' || filters.minRuntime !== '',
+    filters.runtimes.length > 0,
     filters.newReleases,
     filters.isFree,
     filters.isClassic,
@@ -244,7 +243,7 @@ export default function Home() {
     {
       label: '👨‍👩‍👧‍👦 Family Night',
       apply: () => {
-        const f = { ...DEFAULT_FILTERS, ageRating: 'Family (G/PG)', genres: ['Family', 'Animation', 'Comedy'] }
+        const f = { ...DEFAULT_FILTERS, ageRating: ['Family (G/PG)'], genres: ['Family', 'Animation', 'Comedy'] }
         setFilters(f); setPendingFilters(f); setItems([]); setPage(1)
       }
     },

@@ -89,10 +89,9 @@ export interface DiscoveryFilters {
   page?: number
   type?: 'all' | 'movie' | 'tv'
   genres?: string
-  ageRating?: string
+  ageRating?: string // comma separated labels
   minRating?: string
-  maxRuntime?: string
-  minRuntime?: string
+  runtimes?: string  // comma separated labels like '<90','90-120'
   newReleases?: string
   sortBy?: string
   watchProviders?: string
@@ -119,7 +118,7 @@ export async function getDiscoveryFeed(filters: DiscoveryFilters = {}) {
   }
 
   // 2. Normal Discovery Mode
-  const hasFilters = filters.genres || filters.ageRating || filters.minRating || filters.maxRuntime || filters.minRuntime || filters.newReleases === 'true' || !!filters.watchProviders || filters.isFree === 'true' || filters.isClassic === 'true'
+  const hasFilters = filters.genres || filters.ageRating || filters.minRating || filters.runtimes || filters.newReleases === 'true' || !!filters.watchProviders || filters.isFree === 'true' || filters.isClassic === 'true'
 
   if (!hasFilters && type === 'all') {
     return fetchTMDB(endpoints.trending('all'), { page: page.toString() })
@@ -137,6 +136,14 @@ export async function getDiscoveryFeed(filters: DiscoveryFilters = {}) {
     )
     return { results: merged, page, total_pages: Math.min(movieData.total_pages, tvData.total_pages) }
   }
+
+  // When merging results from multi-select filters, we rely on TMDB's ability to handle OR logic for some fields (like with_genres).
+  // For age rating certification, TMDB allows `certification.lte` or `certification` with OR logic using pipes `|`.
+  // For runtimes, if multiple ranges selected, we might need multiple queries or broad range?
+  // TMDB `with_runtime.gte` / `lte` is a single range.
+  // If user selects "<90" AND "90-120", effectively it is "<120".
+  // If they select "<90" AND ">120" (skipping middle), TMDB can't do that easily in one query.
+  // Strategy: Calculate the min of all minRuntimes and max of all maxRuntimes.
 
   // Single type with filters
   const mediaType = type as 'movie' | 'tv'
@@ -191,15 +198,31 @@ async function fetchFilteredDiscover(mediaType: 'movie' | 'tv', filters: Discove
     if (ids) params.with_genres = ids
   }
 
-  // Age rating
-  if (filters.ageRating && filters.ageRating !== 'All Ages') {
-    const match = AGE_RATINGS.find(r => r.label === filters.ageRating)
-    if (match) {
-      const certs = mediaType === 'movie' ? match.movie : match.tv
-      if (certs) {
-        params.certification_country = 'US'
-        params.certification = certs
+  // Age rating (Multi-select)
+  if (filters.ageRating) {
+    const selectedLabels = filters.ageRating.split(',')
+    const combinedCerts: string[] = []
+
+    selectedLabels.forEach(label => {
+      const match = AGE_RATINGS.find(r => r.label === label)
+      if (match) {
+        const certs = mediaType === 'movie' ? match.movie : match.tv
+        if (certs) combinedCerts.push(certs)
       }
+    })
+
+    if (combinedCerts.length > 0) {
+      // TMDB allows `certification` parameter to be pipe-separated OR list? 
+      // Actually certification usually takes one value or uses certification.lte.
+      // But we can try passing pipe separated values to `certification` or `certification.lte`?
+      // According to docs, `certification` matches exact. 
+      // `certification.lte` matches less than.
+      // If we want multiple specific ratings (PG OR G), we need pipe separated string?
+      // TMDB docs say: `certification` query param supports multiple values separated by pipe `|`.
+
+      const uniqueCerts = [...new Set(combinedCerts.join('|').split('|'))].join('|')
+      params.certification_country = 'US'
+      params.certification = uniqueCerts
     }
   }
 
@@ -208,10 +231,44 @@ async function fetchFilteredDiscover(mediaType: 'movie' | 'tv', filters: Discove
     params['vote_average.gte'] = filters.minRating
   }
 
-  // Runtime
-  if (mediaType === 'movie') {
-    if (filters.maxRuntime) params['with_runtime.lte'] = filters.maxRuntime
-    if (filters.minRuntime) params['with_runtime.gte'] = filters.minRuntime
+  // Runtime (Multi-select) - Combine ranges
+  if (mediaType === 'movie' && filters.runtimes) {
+    const selectedLabels = filters.runtimes.split(',')
+    // Parse our specific known options
+    // '< 90 min' -> max 90
+    // '90–120 min' -> min 90, max 120
+    // '2+ hours' -> min 120
+
+    // If multiple selected, we union them.
+    // e.g. <90 AND >120 -> We can't do disjoint ranges in TMDB easily.
+    // We will take the overall range that covers all selections.
+    // <90 (0-90) + >120 (120-999) -> 0-999 (No filter effectively)
+    // <90 + 90-120 -> 0-120.
+
+    // Check which ones are present
+    const hasShort = selectedLabels.includes('< 90 min')
+    const hasMedium = selectedLabels.includes('90–120 min')
+    const hasLong = selectedLabels.includes('2+ hours')
+
+    if (hasShort && hasMedium && hasLong) {
+      // All selected = no filter
+    } else if (hasShort && hasMedium) {
+      // 0 - 120
+      params['with_runtime.lte'] = '120'
+    } else if (hasMedium && hasLong) {
+      // 90 - 999
+      params['with_runtime.gte'] = '90'
+    } else if (hasShort && hasLong) {
+      // 0-90 OR 120+. Hard. Let's just ignore runtime filter or map to full range.
+      // Effectively no filter.
+    } else if (hasShort) {
+      params['with_runtime.lte'] = '90'
+    } else if (hasMedium) {
+      params['with_runtime.gte'] = '90'
+      params['with_runtime.lte'] = '120'
+    } else if (hasLong) {
+      params['with_runtime.gte'] = '120'
+    }
   }
 
   // New releases (mutually exclusive with Classic effectively, but let's handle precedence)

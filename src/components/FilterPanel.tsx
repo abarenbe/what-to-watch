@@ -41,10 +41,9 @@ const SORT_OPTIONS = [
 export interface FilterState {
     type: 'all' | 'movie' | 'tv'
     genres: string[]
-    ageRating: string
+    ageRating: string[]
     minRating: string
-    maxRuntime: string
-    minRuntime: string
+    runtimes: string[] // e.g. ['<90', '90-120']
     newReleases: boolean
     isFree: boolean
     isClassic: boolean
@@ -55,10 +54,9 @@ export interface FilterState {
 export const DEFAULT_FILTERS: FilterState = {
     type: 'all',
     genres: [],
-    ageRating: 'All Ages',
+    ageRating: [],
     minRating: '',
-    maxRuntime: '',
-    minRuntime: '',
+    runtimes: [],
     newReleases: false,
     isFree: false,
     isClassic: false,
@@ -86,9 +84,9 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
 
     const activeFilterCount = [
         filters.genres.length > 0,
-        filters.ageRating !== 'All Ages',
+        filters.ageRating.length > 0,
         filters.minRating !== '',
-        filters.maxRuntime !== '' || filters.minRuntime !== '',
+        filters.runtimes.length > 0,
         filters.newReleases,
         filters.sortBy !== 'popularity.desc',
     ].filter(Boolean).length
@@ -161,8 +159,14 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
                             {AGE_OPTIONS.map(opt => (
                                 <button
                                     key={opt.label}
-                                    onClick={() => update({ ageRating: opt.label })}
-                                    className={`${styles.chip} ${filters.ageRating === opt.label ? styles.chipActive : ''}`}
+                                    onClick={() => {
+                                        const isSelected = filters.ageRating.includes(opt.label)
+                                        const next = isSelected
+                                            ? filters.ageRating.filter(r => r !== opt.label)
+                                            : [...filters.ageRating, opt.label]
+                                        update({ ageRating: next })
+                                    }}
+                                    className={`${styles.chip} ${filters.ageRating.includes(opt.label) ? styles.chipActive : ''}`}
                                 >
                                     <span>{opt.label}</span>
                                 </button>
@@ -177,17 +181,28 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
                                 <Clock className="w-4 h-4" /> Runtime
                             </h3>
                             <div className={styles.chipRow}>
-                                {RUNTIME_OPTIONS.map(opt => (
-                                    <button
-                                        key={opt.label}
-                                        onClick={() => update({ minRuntime: opt.min, maxRuntime: opt.max })}
-                                        className={`${styles.chip} ${filters.minRuntime === opt.min && filters.maxRuntime === opt.max
-                                            ? styles.chipActive : ''
-                                            }`}
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
+                                {RUNTIME_OPTIONS.map(opt => {
+                                    const val = opt.label // Use label as ID since simplified logic will parse on API side
+                                    // Actually, let's store the index or a unique key? 
+                                    // Let's store the label for simplicity in UI, and map it in page.tsx
+                                    return (
+                                        <button
+                                            key={opt.label}
+                                            onClick={() => {
+                                                const isSelected = filters.runtimes.includes(opt.label)
+                                                const next = isSelected
+                                                    ? filters.runtimes.filter(r => r !== opt.label)
+                                                    : [...filters.runtimes, opt.label]
+                                                update({ runtimes: next })
+                                            }}
+                                            className={`${styles.chip} ${filters.runtimes.includes(opt.label)
+                                                ? styles.chipActive : ''
+                                                }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    )
+                                })}
                             </div>
                         </section>
                     )}
