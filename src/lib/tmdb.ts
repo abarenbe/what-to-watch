@@ -282,6 +282,7 @@ async function fetchFilteredDiscover(mediaType: 'movie' | 'tv', filters: Discove
     } else {
       params['first_air_date.gte'] = dateStr
     }
+    params.sort_by = mediaType === 'movie' ? 'primary_release_date.desc' : 'first_air_date.desc'
   }
 
   return fetchTMDB(endpoints.discover(mediaType), params)
