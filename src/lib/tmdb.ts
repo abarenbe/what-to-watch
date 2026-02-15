@@ -98,6 +98,7 @@ export interface DiscoveryFilters {
   query?: string       // New: Search query
   isFree?: string      // New: "true" or "false"
   isClassic?: string   // New: "true" or "false"
+  familyLiked?: string // New: "true" or "false"
   language?: string    // New: 'en', 'es', etc.
 }
 

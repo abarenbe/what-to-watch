@@ -63,6 +63,8 @@ export default function Home() {
   const buildQuery = useCallback((pg: number, f: FilterState) => {
     const params = new URLSearchParams()
     params.set('page', pg.toString())
+    if (userId) params.set('userId', userId)
+    if (groupId) params.set('groupId', groupId)
     if (f.query) params.set('query', f.query)
     params.set('type', f.type)
     if (f.genres.length > 0) params.set('genres', f.genres.join(','))
@@ -71,11 +73,12 @@ export default function Home() {
     if (f.runtimes.length > 0) params.set('runtimes', f.runtimes.join(','))
     if (f.language) params.set('language', f.language)
     if (f.newReleases) params.set('newReleases', 'true')
+    if (f.familyLiked) params.set('familyLiked', 'true')
     if (f.isFree) params.set('isFree', 'true')
     if (f.isClassic) params.set('isClassic', 'true')
     if (f.sortBy !== 'popularity.desc') params.set('sortBy', f.sortBy)
     return params.toString()
-  }, [])
+  }, [userId, groupId])
 
   // Fetch already-swiped IDs so we can filter them from discovery
   useEffect(() => {

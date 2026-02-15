@@ -57,6 +57,7 @@ export interface FilterState {
     runtimes: string[] // e.g. ['<90', '90-120']
     language: string
     newReleases: boolean
+    familyLiked: boolean
     isFree: boolean
     isClassic: boolean
     sortBy: string
@@ -71,6 +72,7 @@ export const DEFAULT_FILTERS: FilterState = {
     runtimes: [],
     language: '',
     newReleases: false,
+    familyLiked: false,
     isFree: false,
     isClassic: false,
     sortBy: 'popularity.desc',
@@ -102,6 +104,7 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
         filters.runtimes.length > 0,
         filters.language !== '',
         filters.newReleases,
+        filters.familyLiked,
         filters.sortBy !== 'popularity.desc',
     ].filter(Boolean).length
 
@@ -195,28 +198,23 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
                                 <Clock className="w-4 h-4" /> Runtime
                             </h3>
                             <div className={styles.chipRow}>
-                                {RUNTIME_OPTIONS.map(opt => {
-                                    const val = opt.label // Use label as ID since simplified logic will parse on API side
-                                    // Actually, let's store the index or a unique key? 
-                                    // Let's store the label for simplicity in UI, and map it in page.tsx
-                                    return (
-                                        <button
-                                            key={opt.label}
-                                            onClick={() => {
-                                                const isSelected = filters.runtimes.includes(opt.label)
-                                                const next = isSelected
-                                                    ? filters.runtimes.filter(r => r !== opt.label)
-                                                    : [...filters.runtimes, opt.label]
-                                                update({ runtimes: next })
-                                            }}
-                                            className={`${styles.chip} ${filters.runtimes.includes(opt.label)
-                                                ? styles.chipActive : ''
-                                                }`}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    )
-                                })}
+                                {RUNTIME_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.label}
+                                        onClick={() => {
+                                            const isSelected = filters.runtimes.includes(opt.label)
+                                            const next = isSelected
+                                                ? filters.runtimes.filter(r => r !== opt.label)
+                                                : [...filters.runtimes, opt.label]
+                                            update({ runtimes: next })
+                                        }}
+                                        className={`${styles.chip} ${filters.runtimes.includes(opt.label)
+                                            ? styles.chipActive : ''
+                                            }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
                             </div>
                         </section>
                     )}
@@ -270,6 +268,12 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
                                 🔥 New Releases
                             </button>
                             <button
+                                onClick={() => update({ familyLiked: !filters.familyLiked })}
+                                className={`${styles.chip} ${filters.familyLiked ? styles.chipActive : ''}`}
+                            >
+                                ❤️ Family Liked
+                            </button>
+                            <button
                                 onClick={() => update({ isClassic: !filters.isClassic, newReleases: false })}
                                 className={`${styles.chip} ${filters.isClassic ? styles.chipActive : ''}`}
                             >
@@ -280,6 +284,19 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
                                 className={`${styles.chip} ${filters.isFree ? styles.chipActive : ''}`}
                             >
                                 ✅ Just Watch
+                            </button>
+                            <button
+                                onClick={() => {
+                                    // Quick toggle for G/PG (Family) in Age Rating
+                                    const familyLabel = 'Family (G/PG)'
+                                    const next = filters.ageRating.includes(familyLabel)
+                                        ? filters.ageRating.filter(r => r !== familyLabel)
+                                        : [familyLabel] // Replace or add? Let's treat it as a filter set.
+                                    update({ ageRating: next })
+                                }}
+                                className={`${styles.chip} ${filters.ageRating.includes('Family (G/PG)') ? styles.chipActive : ''}`}
+                            >
+                                👶 Family Friendly
                             </button>
                         </div>
                     </section>
