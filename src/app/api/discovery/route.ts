@@ -63,8 +63,8 @@ export async function GET(request: Request) {
         genres: searchParams.get('genres') || undefined,
         ageRating: searchParams.get('ageRating') || undefined,
         minRating: searchParams.get('minRating') || undefined,
-        maxRuntime: searchParams.get('maxRuntime') || undefined,
-        minRuntime: searchParams.get('minRuntime') || undefined,
+        runtimes: searchParams.get('runtimes') || undefined,
+        language: searchParams.get('language') || undefined,
         newReleases: searchParams.get('newReleases') || undefined,
         sortBy: searchParams.get('sortBy') || undefined,
         watchProviders, // Add this
