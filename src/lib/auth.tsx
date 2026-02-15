@@ -146,38 +146,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initialize auth
     useEffect(() => {
         const init = async () => {
+            console.log('Auth: Initializing...')
             try {
+                // Set a safety timeout to ensure loading eventually stops
+                const timeout = setTimeout(() => {
+                    console.warn('Auth: Initialization timed out')
+                    setLoading(false)
+                }, 8000)
+
                 const { data: { session: currentSession } } = await supabase.auth.getSession()
+                console.log('Auth: Session detected:', !!currentSession)
+
                 setSession(currentSession)
                 setUser(currentSession?.user ?? null)
 
                 if (currentSession?.user) {
-                    const p = await fetchProfile(currentSession.user.id)
-                    const g = await fetchGroups(currentSession.user.id)
-                    resolveActiveGroup(p, g)
+                    // Try to fetch profile and groups but don't hang forever
+                    try {
+                        const [p, g] = await Promise.all([
+                            fetchProfile(currentSession.user.id),
+                            fetchGroups(currentSession.user.id)
+                        ])
+                        resolveActiveGroup(p, g)
+                    } catch (fetchErr) {
+                        console.error('Auth: Init fetch error:', fetchErr)
+                    }
                 }
+                clearTimeout(timeout)
             } catch (err) {
-                console.error('Auth init error:', err)
+                console.error('Auth: Init error:', err)
             } finally {
                 setLoading(false)
+                console.log('Auth: Initialization complete')
             }
         }
         init()
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-            setSession(newSession)
-            setUser(newSession?.user ?? null)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+            console.log('Auth: State changed:', event, !!newSession)
+            try {
+                setSession(newSession)
+                setUser(newSession?.user ?? null)
 
-            if (newSession?.user) {
-                const p = await fetchProfile(newSession.user.id)
-                const g = await fetchGroups(newSession.user.id)
-                resolveActiveGroup(p, g)
-            } else {
-                setProfile(null)
-                setGroups([])
-                setActiveGroup(null)
+                if (newSession?.user) {
+                    // Parallel fetch with timeout would be safer, but for now just parallelize
+                    const [p, g] = await Promise.all([
+                        fetchProfile(newSession.user.id),
+                        fetchGroups(newSession.user.id)
+                    ])
+                    resolveActiveGroup(p, g)
+                } else {
+                    setProfile(null)
+                    setGroups([])
+                    setActiveGroup(null)
+                }
+            } catch (err) {
+                console.error('Auth: State change error:', err)
+            } finally {
+                setLoading(false)
             }
-            setLoading(false)
         })
 
         return () => subscription.unsubscribe()

@@ -60,9 +60,8 @@ export function AuthScreen() {
         const { error: googleError } = await signInWithGoogle()
         if (googleError) {
             setError(googleError)
-            setGoogleLoading(false)
         }
-        // On success, user is redirected to Google OAuth flow
+        setGoogleLoading(false)
     }
 
     return (
