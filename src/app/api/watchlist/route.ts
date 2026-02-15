@@ -61,14 +61,56 @@ export async function GET(request: Request) {
             }
         }
 
-        // 4. Combine and Hydrate with TMDB — return rich data for filtering
+
+
+        // 4. Fetch User's Providers (for "Just Watch" calculation)
+        const { data: userProviders } = await client
+            .from('user_providers')
+            .select('provider_id')
+            .eq('user_id', userId)
+
+        const myProviderIds = new Set((userProviders || []).map(p => p.provider_id))
+
+        // 5. Combine and Hydrate with TMDB — return rich data for filtering
         const genreMap = (type: 'movie' | 'tv') => type === 'movie' ? MOVIE_GENRES : TV_GENRES
 
         const watchlist = await Promise.all(
             mySwipes.map(async (swipe) => {
                 const type = (swipe.media_type || 'movie') as 'movie' | 'tv'
                 try {
-                    const details = await fetchTMDB(endpoints.details(swipe.movie_id, type))
+                    // Fetch details WITH extra info for filtering
+                    const details = await fetchTMDB(
+                        endpoints.details(swipe.movie_id, type),
+                        { append_to_response: 'watch/providers,release_dates,content_ratings' }
+                    )
+
+                    // --- CALC: Just Watch (isWatchable) ---
+                    let isWatchable = false
+                    if (details['watch/providers'] && details['watch/providers'].results && details['watch/providers'].results.US) {
+                        const usProviders = details['watch/providers'].results.US
+                        // Check flatrate, free, or ads
+                        const available = [
+                            ...(usProviders.flatrate || []),
+                            ...(usProviders.free || []),
+                            ...(usProviders.ads || [])
+                        ]
+                        // If any available provider matches my providers
+                        isWatchable = available.some((p: { provider_id: number }) => myProviderIds.has(p.provider_id))
+                    }
+
+                    // --- CALC: Age Rating ---
+                    let ageRating = 'NR'
+                    if (type === 'movie') {
+                        const usRelease = details.release_dates?.results?.find((r: { iso_3166_1: string }) => r.iso_3166_1 === 'US')
+                        if (usRelease && usRelease.release_dates) {
+                            // Find the first non-empty certification
+                            const cert = usRelease.release_dates.find((d: { certification: string }) => d.certification !== '')
+                            if (cert) ageRating = cert.certification
+                        }
+                    } else {
+                        const usRating = details.content_ratings?.results?.find((r: { iso_3166_1: string }) => r.iso_3166_1 === 'US')
+                        if (usRating) ageRating = usRating.rating
+                    }
 
                     // Build family scores array
                     const memberSwipes = (groupSwipes || []).filter(gs => gs.movie_id === swipe.movie_id)
@@ -100,6 +142,8 @@ export async function GET(request: Request) {
                         tmdbRating: details.vote_average || 0,
                         runtime: details.runtime || details.episode_run_time?.[0] || 0,
                         familyScores,
+                        isWatchable,
+                        ageRating,
                     }
                 } catch (error) {
                     console.error(`Error hydrating ${type}/${swipe.movie_id}:`, error)

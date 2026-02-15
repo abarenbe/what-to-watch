@@ -23,6 +23,8 @@ interface WatchlistItem {
     tmdbRating: number
     runtime: number
     familyScores: FamilyScore[]
+    isWatchable: boolean
+    ageRating?: string
 }
 
 const SCORE_OPTIONS = [
@@ -67,6 +69,8 @@ interface WatchlistFilters {
     runtimeIdx: number       // index into RUNTIME_OPTIONS
     familyMember: string     // userId or 'all'  
     familyMinScore: number   // 0 = any, 1+ = filter
+    isWatchable: boolean     // Just Watch filter
+    isFamilyFriendly: boolean // G/PG/TV-Y/TV-G/TV-Y7/TV-PG
     sortBy: 'recent' | 'rating' | 'myScore' | 'title'
 }
 
@@ -79,6 +83,8 @@ const DEFAULT_WATCHLIST_FILTERS: WatchlistFilters = {
     runtimeIdx: 0,
     familyMember: 'all',
     familyMinScore: 0,
+    isWatchable: false,
+    isFamilyFriendly: false,
     sortBy: 'recent',
 }
 
@@ -246,6 +252,18 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
         if (filters.minTmdbRating > 0 && i.tmdbRating < filters.minTmdbRating) return false
         if (runtimeOpt.max < Infinity && i.runtime > runtimeOpt.max) return false
         if (runtimeOpt.min > 0 && i.runtime < runtimeOpt.min) return false
+        if (filters.isWatchable && !i.isWatchable) return false
+
+        if (filters.isFamilyFriendly) {
+            // Check age rating. 
+            // Normalize: G, PG, TV-Y, TV-Y7, TV-G, TV-PG are "Family"
+            // Typically PG-13, R, TV-14, TV-MA are NOT.
+            // Edge case: NR or Unrated? Usually safe to exclude if strict, or include if lenient?
+            // Let's exclude NR for "safe" filtering.
+            const r = (i.ageRating || '').toUpperCase()
+            const safe = ['G', 'PG', 'TV-Y', 'TV-Y7', 'TV-G', 'TV-PG']
+            if (!safe.includes(r)) return false
+        }
 
         // Family member filter
         if (filters.familyMember !== 'all') {
@@ -278,6 +296,8 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
         filters.minTmdbRating > 0,
         filters.runtimeIdx > 0,
         filters.familyMember !== 'all' || filters.familyMinScore > 0,
+        filters.isWatchable,
+        filters.isFamilyFriendly,
         filters.sortBy !== 'recent',
     ].filter(Boolean).length
 
@@ -400,6 +420,25 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
                                             {t === 'all' ? '🎯 All' : t === 'movie' ? '🎬 Movies' : '📺 TV Shows'}
                                         </button>
                                     ))}
+                                </div>
+                            </section>
+
+                            {/* Status */}
+                            <section className={styles.filterSection}>
+                                <h3 className={styles.filterSectionTitle}>Collections</h3>
+                                <div className={styles.chipRow}>
+                                    <button
+                                        onClick={() => setFilters(prev => ({ ...prev, isWatchable: !prev.isWatchable }))}
+                                        className={`${styles.chip} ${filters.isWatchable ? styles.chipActive : ''}`}
+                                    >
+                                        ✅ Just Watch
+                                    </button>
+                                    <button
+                                        onClick={() => setFilters(prev => ({ ...prev, isFamilyFriendly: !prev.isFamilyFriendly }))}
+                                        className={`${styles.chip} ${filters.isFamilyFriendly ? styles.chipActive : ''}`}
+                                    >
+                                        👶 Family Friendly
+                                    </button>
                                 </div>
                             </section>
 
