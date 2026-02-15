@@ -126,6 +126,8 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
         if (userId && groupId) {
             fetchWatchlist()
             fetchTonightPicks()
+        } else {
+            setLoading(false)
         }
     }, [userId, groupId, fetchWatchlist, fetchTonightPicks])
 
@@ -301,6 +303,10 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
 
     if (loading) {
         return <div className={styles.loading}>Loading your list...</div>
+    }
+
+    if (!userId || !groupId) {
+        return <div className={styles.empty}>Please join a group to see your list.</div>
     }
 
     return (
