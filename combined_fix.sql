@@ -32,3 +32,4 @@ DROP POLICY IF EXISTS "Users can view own providers" ON user_providers;
 CREATE POLICY "Users can insert own providers" ON user_providers FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own providers" ON user_providers FOR DELETE USING (auth.uid() = user_id);
 CREATE POLICY "Users can view own providers" ON user_providers FOR SELECT USING (auth.uid() = user_id);
+

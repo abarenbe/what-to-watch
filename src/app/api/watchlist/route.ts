@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { fetchTMDB, endpoints, getTMDBImageUrl, MOVIE_GENRES, TV_GENRES } from '@/lib/tmdb'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
@@ -12,6 +14,10 @@ export async function GET(request: Request) {
     }
 
     const client = supabaseAdmin || supabase
+
+    // Debug logging
+    console.log(`Fetching watchlist for user: ${userId}, group: ${groupId}`)
+
 
     try {
         // 1. Fetch user's personal swipes (Score > 0 means they want to watch)
