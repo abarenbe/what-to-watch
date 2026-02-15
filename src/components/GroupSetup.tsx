@@ -81,12 +81,7 @@ export function GroupSetup({ mode = 'setup', onComplete }: GroupSetupProps) {
             setError(joinError)
         } else {
             setInviteCode('')
-            setInviteCode('')
-            if (mode === 'manage') {
-                setStep('manage')
-            } else {
-                setStep('services')
-            }
+            setStep('services')
         }
         setLoading(false)
     }
