@@ -46,7 +46,10 @@ export interface FilterState {
     maxRuntime: string
     minRuntime: string
     newReleases: boolean
+    isFree: boolean
+    isClassic: boolean
     sortBy: string
+    query?: string
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -57,6 +60,8 @@ export const DEFAULT_FILTERS: FilterState = {
     maxRuntime: '',
     minRuntime: '',
     newReleases: false,
+    isFree: false,
+    isClassic: false,
     sortBy: 'popularity.desc',
 }
 
@@ -177,7 +182,7 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
                                         key={opt.label}
                                         onClick={() => update({ minRuntime: opt.min, maxRuntime: opt.max })}
                                         className={`${styles.chip} ${filters.minRuntime === opt.min && filters.maxRuntime === opt.max
-                                                ? styles.chipActive : ''
+                                            ? styles.chipActive : ''
                                             }`}
                                     >
                                         {opt.label}
@@ -205,17 +210,31 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
                         </div>
                     </section>
 
-                    {/* New Releases */}
+                    {/* New Releases & Collections */}
                     <section className={styles.section}>
                         <h3 className={styles.sectionTitle}>
-                            <Sparkles className="w-4 h-4" /> New Releases
+                            <Sparkles className="w-4 h-4" /> Collections
                         </h3>
-                        <button
-                            onClick={() => update({ newReleases: !filters.newReleases })}
-                            className={`${styles.chip} ${styles.toggleChip} ${filters.newReleases ? styles.chipActive : ''}`}
-                        >
-                            Last 6 months only
-                        </button>
+                        <div className={styles.chipRow}>
+                            <button
+                                onClick={() => update({ newReleases: !filters.newReleases, isClassic: false })}
+                                className={`${styles.chip} ${filters.newReleases ? styles.chipActive : ''}`}
+                            >
+                                🔥 New Releases
+                            </button>
+                            <button
+                                onClick={() => update({ isClassic: !filters.isClassic, newReleases: false })}
+                                className={`${styles.chip} ${filters.isClassic ? styles.chipActive : ''}`}
+                            >
+                                📼 Classics
+                            </button>
+                            <button
+                                onClick={() => update({ isFree: !filters.isFree })}
+                                className={`${styles.chip} ${filters.isFree ? styles.chipActive : ''}`}
+                            >
+                                ✅ Just Watch
+                            </button>
+                        </div>
                     </section>
 
                     {/* Sort By */}

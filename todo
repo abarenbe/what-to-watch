@@ -1,0 +1,5 @@
+[x] Be able to filter my watchlist. (Done - full filter panel: type, status, my rating, family ratings, genre, TMDb rating, runtime, sort)
+[x] Stop reshowing already-swiped items on discovery screen. (Done - fetches swiped IDs and filters them out)
+[x] Create family groups. (Done - multi-group support, Google Sign-In, invite codes, group switching)
+[ ] Be able to select streaming services and swipe screen defaults to currently available to watch. 
+[ ] Controls on my watchlist to go back to the swipe screen. 

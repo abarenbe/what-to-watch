@@ -43,7 +43,7 @@ export function calculateMatchScore(swipes: UserSwipe[], totalFamilyMembers: num
     if (!someoneActive) return null;
 
     // Rule 3: Rank by sum
-    const totalScore = scores.reduce((sum, score) => sum + score, 0);
+    const totalScore = scores.reduce((sum: number, score) => sum + score, 0 as number);
 
     return totalScore;
 }

@@ -1,10 +1,17 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { SwipeCard } from '@/components/SwipeCard'
+import dynamic from 'next/dynamic'
+
+const SwipeCard = dynamic(() => import('@/components/SwipeCard').then(mod => mod.SwipeCard), {
+  ssr: false,
+})
 import { FilterPanel, FilterState, DEFAULT_FILTERS } from '@/components/FilterPanel'
-import { Tv, Film, Settings, Heart, Users, Loader2, SlidersHorizontal } from 'lucide-react'
+import { Tv, Film, Settings, Heart, Users, Loader2, SlidersHorizontal, Moon, ChevronDown, Search } from 'lucide-react'
 import { getTMDBImageUrl } from '@/lib/tmdb'
+import { useAuth } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
+import { AuthScreen } from '@/components/AuthScreen'
 import styles from './page.module.css'
 
 interface Movie {
@@ -17,26 +24,46 @@ interface Movie {
   mediaType: 'movie' | 'tv'
 }
 
-import { Matches } from '@/components/Matches'
-import { Watchlist } from '@/components/Watchlist'
+const GroupSetup = dynamic(() => import('@/components/GroupSetup').then(mod => mod.GroupSetup), { ssr: false })
+const Matches = dynamic(() => import('@/components/Matches').then(mod => mod.Matches), { ssr: false })
+const Watchlist = dynamic(() => import('@/components/Watchlist').then(mod => mod.Watchlist), { ssr: false })
+const Tonight = dynamic(() => import('@/components/Tonight').then(mod => mod.Tonight), { ssr: false })
 
 export default function Home() {
+  const { user, profile, groups, activeGroup, loading: authLoading, switchGroup } = useAuth()
+
   const [items, setItems] = useState<Movie[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const [activeTab, setActiveTab] = useState<'discovery' | 'matches' | 'watchlist'>('discovery')
+  const [activeTab, setActiveTab] = useState<'discovery' | 'matches' | 'watchlist' | 'tonight' | 'family'>('discovery')
   const [filters, setFilters] = useState<FilterState>({ ...DEFAULT_FILTERS })
   const [pendingFilters, setPendingFilters] = useState<FilterState>({ ...DEFAULT_FILTERS })
   const [showFilters, setShowFilters] = useState(false)
+  const [swipedIds, setSwipedIds] = useState<Set<string>>(new Set())
+  const [swipedIdsLoaded, setSwipedIdsLoaded] = useState(false)
+  const [showGroupPicker, setShowGroupPicker] = useState(false)
 
-  // Mock IDs for the demo phase
-  const MOCK_GROUP_ID = '00000000-0000-0000-0000-000000000000'
-  const MOCK_USER_ID = '00000000-0000-0000-0000-000000000001'
+  // ── Auth gates ──
+  // ... (auth loading check not shown in partial replace context, keep existing) ...
+
+  // Real auth IDs
+  const userId = user?.id || ''
+  const groupId = activeGroup?.id || ''
+
+  // Reset discovery when active group changes
+  useEffect(() => {
+    if (groupId) {
+      setItems([])
+      setPage(1)
+      setSwipedIdsLoaded(false)
+    }
+  }, [groupId])
 
   // Build the query string from active filters
   const buildQuery = useCallback((pg: number, f: FilterState) => {
     const params = new URLSearchParams()
     params.set('page', pg.toString())
+    if (f.query) params.set('query', f.query)
     params.set('type', f.type)
     if (f.genres.length > 0) params.set('genres', f.genres.join(','))
     if (f.ageRating !== 'All Ages') params.set('ageRating', f.ageRating)
@@ -44,19 +71,58 @@ export default function Home() {
     if (f.maxRuntime) params.set('maxRuntime', f.maxRuntime)
     if (f.minRuntime) params.set('minRuntime', f.minRuntime)
     if (f.newReleases) params.set('newReleases', 'true')
+    if (f.isFree) params.set('isFree', 'true')
+    if (f.isClassic) params.set('isClassic', 'true')
     if (f.sortBy !== 'popularity.desc') params.set('sortBy', f.sortBy)
     return params.toString()
   }, [])
 
+  // Fetch already-swiped IDs so we can filter them from discovery
+  useEffect(() => {
+    if (!userId) return
+    const loadSwipedIds = async () => {
+      try {
+        let query = supabase
+          .from('swipes')
+          .select('movie_id, media_type')
+          .eq('user_id', userId)
+
+        // If in a group, we still validly want to filter out things we swiped IN THIS GROUP? 
+        // Or globally? 
+        // Per previous decision: Filter strictly by group context to allow re-matching?
+        // Actually, let's filter by group to be consistent with API fix.
+        if (groupId) {
+          query = query.eq('group_id', groupId)
+        }
+
+        const { data, error } = await query
+
+        if (error) {
+          console.error('Failed to load swiped IDs:', error)
+        } else {
+          const keys = (data || []).map(r => `${r.movie_id}_${r.media_type}`)
+          setSwipedIds(new Set(keys))
+        }
+      } catch (err) {
+        console.error('Failed to load swiped IDs:', err)
+      } finally {
+        setSwipedIdsLoaded(true)
+      }
+    }
+    loadSwipedIds()
+  }, [userId, groupId])
+
   const fetchFeed = useCallback(async () => {
     if (loading && items.length > 0) return;
+    if (page > 500) return;
+    if (!swipedIdsLoaded) return;
 
     try {
       setLoading(true)
       const query = buildQuery(page, filters)
       const res = await fetch(`/api/discovery?${query}`)
       const data = await res.json()
-      if (data.results) {
+      if (data.results && data.results.length > 0) {
         const mapped: Movie[] = data.results.map((item: {
           id: number;
           title?: string;
@@ -67,18 +133,25 @@ export default function Home() {
           first_air_date?: string;
           overview?: string;
           media_type?: string;
-        }) => ({
-          id: item.id.toString(),
-          title: item.title || item.name || 'Unknown',
-          image: getTMDBImageUrl(item.poster_path),
-          rating: item.vote_average,
-          year: item.release_date || item.first_air_date
-            ? new Date(item.release_date || item.first_air_date!).getFullYear()
-            : 0,
-          overview: item.overview || '',
-          mediaType: (item.media_type || (filters.type !== 'all' ? filters.type : (item.title ? 'movie' : 'tv'))) as 'movie' | 'tv'
-        }))
-        setItems((prev) => [...prev, ...mapped])
+        }) => {
+          const mediaType = (item.media_type || (filters.type !== 'all' ? filters.type : (item.title ? 'movie' : 'tv'))) as 'movie' | 'tv'
+          return {
+            id: item.id.toString(),
+            title: item.title || item.name || 'Unknown',
+            image: getTMDBImageUrl(item.poster_path),
+            rating: item.vote_average,
+            year: item.release_date || item.first_air_date
+              ? new Date(item.release_date || item.first_air_date!).getFullYear()
+              : 0,
+            overview: item.overview || '',
+            mediaType
+          }
+        })
+
+        const unswiped = mapped.filter(m => !swipedIds.has(`${m.id}_${m.mediaType}`))
+        if (unswiped.length > 0) {
+          setItems((prev) => [...prev, ...unswiped])
+        }
         setPage((p) => p + 1)
       }
     } catch (err) {
@@ -86,14 +159,12 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [page, loading, items.length, filters, buildQuery])
+  }, [page, loading, items.length, filters, buildQuery, swipedIds, swipedIdsLoaded])
 
-  // Initial load
   useEffect(() => {
-    fetchFeed()
-  }, [fetchFeed])
+    if (swipedIdsLoaded) fetchFeed()
+  }, [fetchFeed, swipedIdsLoaded])
 
-  // Load more items when the queue is low
   useEffect(() => {
     if (items.length < 5 && !loading && items.length > 0) {
       fetchFeed()
@@ -101,23 +172,26 @@ export default function Home() {
   }, [items.length, loading, fetchFeed])
 
   const handleSwipe = async (id: string, direction: 'up' | 'down' | 'left' | 'right', mediaType: 'movie' | 'tv', status: 'swiped' | 'watching' | 'watched' = 'swiped') => {
-    setItems((prev) => prev.filter((item) => item.id !== id))
-
+    setItems((prev) => prev.filter((item) => !(item.id === id && item.mediaType === mediaType)))
+    setSwipedIds(prev => {
+      const next = new Set(prev)
+      next.add(`${id}_${mediaType}`)
+      return next
+    })
     const score = { up: 3, right: 2, down: 1, left: 0 }[direction]
 
     try {
-      await fetch('/api/swipe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: MOCK_USER_ID,
-          groupId: MOCK_GROUP_ID,
-          movieId: id,
-          mediaType: mediaType,
-          score,
-          status
-        })
-      })
+      const { error } = await supabase.from('swipes').upsert({
+        user_id: userId,
+        group_id: groupId,
+        movie_id: id,
+        media_type: mediaType,
+        score,
+        status,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id, movie_id, media_type, group_id' })
+
+      if (error) console.error('Failed to save swipe:', error)
     } catch (err) {
       console.error('Failed to save swipe:', err)
     }
@@ -141,7 +215,18 @@ export default function Home() {
     setShowFilters(true)
   }
 
-  // Count active filters for the badge
+  // Search state
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setFilters(prev => ({ ...prev, query: searchTerm }))
+    setItems([])
+    setPage(1)
+    if (!searchTerm) setShowSearch(false)
+  }
+
   const activeFilterCount = [
     filters.type !== 'all',
     filters.genres.length > 0,
@@ -149,45 +234,64 @@ export default function Home() {
     filters.minRating !== '',
     filters.maxRuntime !== '' || filters.minRuntime !== '',
     filters.newReleases,
+    filters.isFree,
+    filters.isClassic,
+    !!filters.query,
     filters.sortBy !== 'popularity.desc',
   ].filter(Boolean).length
 
-  // Quick filter chips for common presets
   const quickPresets = [
     {
       label: '👨‍👩‍👧‍👦 Family Night',
       apply: () => {
         const f = { ...DEFAULT_FILTERS, ageRating: 'Family (G/PG)', genres: ['Family', 'Animation', 'Comedy'] }
-        setFilters(f)
-        setPendingFilters(f)
-        setItems([])
-        setPage(1)
+        setFilters(f); setPendingFilters(f); setItems([]); setPage(1)
       }
     },
     {
       label: '🍿 New Movies',
       apply: () => {
         const f = { ...DEFAULT_FILTERS, type: 'movie' as const, newReleases: true, minRating: '7' }
-        setFilters(f)
-        setPendingFilters(f)
-        setItems([])
-        setPage(1)
+        setFilters(f); setPendingFilters(f); setItems([]); setPage(1)
       }
     },
     {
       label: '📺 Binge-worthy',
       apply: () => {
         const f = { ...DEFAULT_FILTERS, type: 'tv' as const, minRating: '8', sortBy: 'vote_average.desc' }
-        setFilters(f)
-        setPendingFilters(f)
-        setItems([])
-        setPage(1)
+        setFilters(f); setPendingFilters(f); setItems([]); setPage(1)
       }
     },
   ]
 
   const visibleItems = items.slice(0, 5)
 
+  const [showSetup, setShowSetup] = useState(false)
+
+  // Trigger setup if needed (but only once loaded)
+  useEffect(() => {
+    if (!authLoading && user && (!profile?.display_name || groups.length === 0)) {
+      setShowSetup(true)
+    }
+  }, [authLoading, user, profile, groups.length])
+
+  // ── Auth gates ──
+  if (authLoading) {
+    return (
+      <div className={styles.container} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 className="w-8 h-8 animate-spin text-muted" />
+      </div>
+    )
+  }
+
+  if (!user) return <AuthScreen />
+
+  // If setup is needed or explicitly showing
+  if (showSetup) {
+    return <GroupSetup mode="setup" onComplete={() => setShowSetup(false)} />
+  }
+
+  // ── Main app ──
   return (
     <div className={styles.container}>
       {/* Header */}
@@ -199,32 +303,98 @@ export default function Home() {
             </div>
             <h1 className={styles.title}>WATCH</h1>
           </div>
-          <button
-            className={`${styles.iconButton} glass`}
-            style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Settings className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Search Bar */}
+            {activeTab === 'discovery' && (
+              <div className={`${styles.searchWrapper} ${showSearch ? styles.searchExpanded : ''}`}>
+                {showSearch ? (
+                  <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Search titles..."
+                      className={styles.searchInput}
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      onBlur={() => !searchTerm && setShowSearch(false)}
+                    />
+                    <button type="submit" className={styles.iconButton}>
+                      <Search className="w-5 h-5 text-accent" />
+                    </button>
+                  </form>
+                ) : (
+                  <button onClick={() => setShowSearch(true)} className={styles.iconButton}>
+                    <Search className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Group Switcher (if multiple groups) */}
+            {groups.length > 1 ? (
+              <div style={{ position: 'relative' }}>
+                <button
+                  className={`${styles.iconButton} glass`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '8px 14px', borderRadius: 20, fontSize: '0.8rem', fontWeight: 700
+                  }}
+                  onClick={() => setShowGroupPicker(!showGroupPicker)}
+                >
+                  <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {activeGroup?.name || 'Group'}
+                  </span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+                {showGroupPicker && (
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 50 }} onClick={() => setShowGroupPicker(false)} />
+                    <div style={{
+                      position: 'absolute', right: 0, top: '100%', marginTop: 8, zIndex: 51,
+                      background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 16, padding: 8, minWidth: 180,
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+                    }}>
+                      {groups.map(m => (
+                        <button
+                          key={m.group.id}
+                          onClick={() => { switchGroup(m.group.id); setShowGroupPicker(false) }}
+                          style={{
+                            display: 'block', width: '100%', padding: '10px 14px', borderRadius: 10,
+                            fontSize: '0.85rem', fontWeight: activeGroup?.id === m.group.id ? 800 : 500,
+                            color: activeGroup?.id === m.group.id ? 'var(--accent)' : 'var(--foreground)',
+                            textAlign: 'left', transition: 'background 0.15s',
+                            background: activeGroup?.id === m.group.id ? 'rgba(219,39,119,0.08)' : 'transparent'
+                          }}
+                        >
+                          {m.group.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button
+                className={`${styles.iconButton} glass`}
+                style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {activeTab === 'discovery' && (
           <div className={styles.filterBar}>
-            <button
-              onClick={openFilters}
-              className={`${styles.filterToggle} glass`}
-            >
+            <button onClick={openFilters} className={`${styles.filterToggle} glass`}>
               <SlidersHorizontal className="w-4 h-4" />
               <span>Filters</span>
-              {activeFilterCount > 0 && (
-                <span className={styles.filterBadge}>{activeFilterCount}</span>
-              )}
+              {activeFilterCount > 0 && <span className={styles.filterBadge}>{activeFilterCount}</span>}
             </button>
             {quickPresets.map(preset => (
-              <button
-                key={preset.label}
-                onClick={preset.apply}
-                className={`${styles.filterChip} glass`}
-              >
+              <button key={preset.label} onClick={preset.apply} className={`${styles.filterChip} glass`}>
                 {preset.label}
               </button>
             ))}
@@ -232,8 +402,8 @@ export default function Home() {
         )}
       </header>
 
-      {/* Main Content Areas */}
-      <main className={styles.main}>
+      {/* Main Content */}
+      <main className={`${styles.main} ${activeTab === 'discovery' ? styles.mainCentered : ''}`}>
         {activeTab === 'discovery' ? (
           loading && items.length === 0 ? (
             <div className="flex flex-col items-center gap-4 text-muted">
@@ -241,29 +411,31 @@ export default function Home() {
               <p>Loading discovery feed...</p>
             </div>
           ) : items.length > 0 ? (
-            visibleItems.map((item) => (
+            visibleItems.map((item, index) => (
               <SwipeCard
-                key={item.id}
+                key={`${item.id}_${item.mediaType}`}
                 {...item}
+                rating={item.rating || 0}
                 onSwipe={handleSwipe}
+                isActive={index === 0}
               />
             )).reverse()
           ) : (
             <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <Tv className="w-10 h-10" />
-              </div>
+              <div className={styles.emptyIcon}><Tv className="w-10 h-10" /></div>
               <h3 className={styles.emptyTitle}>No more shows!</h3>
               <p className={styles.emptyText}>Try adjusting your filters or start over.</p>
-              <button onClick={handleReset} className={styles.resetButton}>
-                Start Over
-              </button>
+              <button onClick={handleReset} className={styles.resetButton}>Start Over</button>
             </div>
           )
         ) : activeTab === 'matches' ? (
-          <Matches groupId={MOCK_GROUP_ID} />
+          <Matches groupId={groupId} />
+        ) : activeTab === 'tonight' ? (
+          <Tonight userId={userId} groupId={groupId} />
+        ) : activeTab === 'family' ? (
+          <GroupSetup mode="manage" />
         ) : (
-          <Watchlist userId={MOCK_USER_ID} groupId={MOCK_GROUP_ID} />
+          <Watchlist userId={userId} groupId={groupId} />
         )}
       </main>
 
@@ -291,9 +463,19 @@ export default function Home() {
           <span className={styles.badge} />
           <span className={styles.navLabel}>Matches</span>
         </button>
-        <button className={styles.navButton}>
+        <button
+          onClick={() => setActiveTab('tonight')}
+          className={`${styles.navButton} ${activeTab === 'tonight' ? styles.navButtonActive : ''}`}
+        >
+          <Moon />
+          <span className={styles.navLabel}>Tonight</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('family')}
+          className={`${styles.navButton} ${activeTab === 'family' ? styles.navButtonActive : ''}`}
+        >
           <Users />
-          <span className={styles.navLabel}>Family</span>
+          <span className={styles.navLabel}>Groups</span>
         </button>
       </nav>
 

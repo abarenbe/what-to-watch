@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { fetchTMDB, endpoints, getTMDBImageUrl } from '@/lib/tmdb'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { fetchTMDB, endpoints, getTMDBImageUrl, MOVIE_GENRES, TV_GENRES } from '@/lib/tmdb'
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
@@ -11,9 +11,11 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'userId and groupId are required' }, { status: 400 })
     }
 
+    const client = supabaseAdmin || supabase
+
     try {
         // 1. Fetch user's personal swipes (Score > 0 means they want to watch)
-        const { data: mySwipes, error: swipeError } = await supabase
+        const { data: mySwipes, error: swipeError } = await client
             .from('swipes')
             .select('movie_id, media_type, score, status')
             .eq('user_id', userId)
@@ -28,24 +30,53 @@ export async function GET(request: Request) {
 
         const movieIds = mySwipes.map(s => s.movie_id)
 
-        // 2. Fetch other people's swipes for these same movies in the group
-        const { data: groupSwipes, error: groupError } = await supabase
+        // 2. Fetch ALL swipes for these movies in the group (including other members)
+        const { data: groupSwipes, error: groupError } = await client
             .from('swipes')
             .select('movie_id, user_id, score')
             .eq('group_id', groupId)
             .in('movie_id', movieIds)
             .neq('user_id', userId)
-            .gt('score', 0)
 
         if (groupError) throw groupError
 
-        // 3. Combine and Hydrate with TMDB — use correct media_type for each
+        // 3. Fetch profiles for display names
+        const memberIds = [...new Set((groupSwipes || []).map(s => s.user_id))]
+        let profileMap: Record<string, string> = {}
+        if (memberIds.length > 0) {
+            const { data: profiles } = await client
+                .from('profiles')
+                .select('id, display_name')
+                .in('id', memberIds)
+            if (profiles) {
+                profileMap = Object.fromEntries(
+                    profiles.map(p => [p.id, p.display_name || 'Family Member'])
+                )
+            }
+        }
+
+        // 4. Combine and Hydrate with TMDB — return rich data for filtering
+        const genreMap = (type: 'movie' | 'tv') => type === 'movie' ? MOVIE_GENRES : TV_GENRES
+
         const watchlist = await Promise.all(
             mySwipes.map(async (swipe) => {
                 const type = (swipe.media_type || 'movie') as 'movie' | 'tv'
                 try {
                     const details = await fetchTMDB(endpoints.details(swipe.movie_id, type))
-                    const matchCount = groupSwipes?.filter(gs => gs.movie_id === swipe.movie_id).length || 0
+
+                    // Build family scores array
+                    const memberSwipes = (groupSwipes || []).filter(gs => gs.movie_id === swipe.movie_id)
+                    const familyScores = memberSwipes.map(ms => ({
+                        userId: ms.user_id,
+                        displayName: profileMap[ms.user_id] || 'Family Member',
+                        score: ms.score,
+                    }))
+
+                    // Resolve genre names
+                    const gMap = genreMap(type)
+                    const genres: string[] = (details.genre_ids || details.genres?.map((g: { id: number }) => g.id) || [])
+                        .map((id: number) => gMap[id])
+                        .filter(Boolean)
 
                     return {
                         id: swipe.movie_id,
@@ -57,7 +88,12 @@ export async function GET(request: Request) {
                         mediaType: type,
                         myScore: swipe.score,
                         status: swipe.status,
-                        othersCount: matchCount
+                        othersCount: memberSwipes.filter(ms => ms.score > 0).length,
+                        // Enriched data for filtering
+                        genres,
+                        tmdbRating: details.vote_average || 0,
+                        runtime: details.runtime || details.episode_run_time?.[0] || 0,
+                        familyScores,
                     }
                 } catch (error) {
                     console.error(`Error hydrating ${type}/${swipe.movie_id}:`, error)

@@ -88,30 +88,39 @@ export const AGE_RATINGS = [
 export interface DiscoveryFilters {
   page?: number
   type?: 'all' | 'movie' | 'tv'
-  genres?: string       // comma-separated genre labels
-  ageRating?: string    // one of the AGE_RATINGS labels
-  minRating?: string    // e.g. "7"
-  maxRuntime?: string   // e.g. "120"
-  minRuntime?: string   // e.g. "90"
-  newReleases?: string  // "true" or "false"
-  sortBy?: string       // e.g. "popularity.desc"
+  genres?: string
+  ageRating?: string
+  minRating?: string
+  maxRuntime?: string
+  minRuntime?: string
+  newReleases?: string
+  sortBy?: string
+  watchProviders?: string
+  query?: string       // New: Search query
+  isFree?: string      // New: "true" or "false"
+  isClassic?: string   // New: "true" or "false"
 }
 
 export async function getDiscoveryFeed(filters: DiscoveryFilters = {}) {
   const {
     page = 1,
     type = 'all',
-    genres,
-    ageRating,
-    minRating,
-    maxRuntime,
-    minRuntime,
-    newReleases,
-    sortBy = 'popularity.desc',
+    query
   } = filters
 
-  // If no filters active and type is "all", use trending for a nice mixed feed
-  const hasFilters = genres || ageRating || minRating || maxRuntime || minRuntime || newReleases === 'true'
+  // 1. Search Mode Override
+  if (query && query.trim().length > 0) {
+    const params: Record<string, string> = {
+      query: query,
+      page: page.toString(),
+      include_adult: 'false'
+    }
+    return fetchTMDB(endpoints.search, params) // uses /search/multi
+  }
+
+  // 2. Normal Discovery Mode
+  const hasFilters = filters.genres || filters.ageRating || filters.minRating || filters.maxRuntime || filters.minRuntime || filters.newReleases === 'true' || !!filters.watchProviders || filters.isFree === 'true' || filters.isClassic === 'true'
+
   if (!hasFilters && type === 'all') {
     return fetchTMDB(endpoints.trending('all'), { page: page.toString() })
   }
@@ -122,7 +131,6 @@ export async function getDiscoveryFeed(filters: DiscoveryFilters = {}) {
       fetchFilteredDiscover('movie', filters),
       fetchFilteredDiscover('tv', filters),
     ])
-    // Interleave results and tag with media_type
     const merged = interleave(
       (movieData.results || []).map((r: Record<string, unknown>) => ({ ...r, media_type: 'movie' })),
       (tvData.results || []).map((r: Record<string, unknown>) => ({ ...r, media_type: 'tv' }))
@@ -130,10 +138,9 @@ export async function getDiscoveryFeed(filters: DiscoveryFilters = {}) {
     return { results: merged, page, total_pages: Math.min(movieData.total_pages, tvData.total_pages) }
   }
 
-  // Single type with filters → use discover endpoint
+  // Single type with filters
   const mediaType = type as 'movie' | 'tv'
   const data = await fetchFilteredDiscover(mediaType, filters)
-  // Tag each result with media_type so the frontend can identify them
   data.results = (data.results || []).map((r: Record<string, unknown>) => ({ ...r, media_type: mediaType }))
   return data
 }
@@ -146,6 +153,37 @@ async function fetchFilteredDiscover(mediaType: 'movie' | 'tv', filters: Discove
     'vote_count.gte': '50',
   }
 
+  // Watch Providers (Streaming Services)
+  if (filters.watchProviders) {
+    params.with_watch_providers = filters.watchProviders
+    params.watch_region = 'US'
+  }
+
+  // "Just Watch" Filter
+  // This means "Watchable on my services (flatrate) OR Free services (ads/free)" without renting/buying.
+  if (filters.isFree === 'true') {
+    params.with_watch_monetization_types = 'flatrate|free|ads'
+    params.watch_region = 'US'
+  }
+
+  // CLASSIC Filter (Older & Highly Rated)
+  if (filters.isClassic === 'true') {
+    // Arbitrary definition: Before 2005 and Rating > 7.0
+    // If user set a stricter rating, respect it, otherwise default to 7.0
+    if (!params['vote_average.gte']) {
+      params['vote_average.gte'] = '7.0'
+    }
+
+    const cutoffDate = '2005-01-01'
+    if (mediaType === 'movie') {
+      params['primary_release_date.lte'] = cutoffDate
+    } else {
+      params['first_air_date.lte'] = cutoffDate
+    }
+
+    // Usually classics are sorted by rating or popularity. Keep user sort or default.
+  }
+
   // Genre
   if (filters.genres) {
     const genreLabels = filters.genres.split(',').map(g => g.trim())
@@ -153,7 +191,7 @@ async function fetchFilteredDiscover(mediaType: 'movie' | 'tv', filters: Discove
     if (ids) params.with_genres = ids
   }
 
-  // Age rating / certification
+  // Age rating
   if (filters.ageRating && filters.ageRating !== 'All Ages') {
     const match = AGE_RATINGS.find(r => r.label === filters.ageRating)
     if (match) {
@@ -176,8 +214,8 @@ async function fetchFilteredDiscover(mediaType: 'movie' | 'tv', filters: Discove
     if (filters.minRuntime) params['with_runtime.gte'] = filters.minRuntime
   }
 
-  // New releases (last 6 months)
-  if (filters.newReleases === 'true') {
+  // New releases (mutually exclusive with Classic effectively, but let's handle precedence)
+  if (filters.newReleases === 'true' && filters.isClassic !== 'true') {
     const now = new Date()
     const sixMonthsAgo = new Date(now)
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)

@@ -11,10 +11,11 @@ interface SwipeCardProps {
     year: number
     overview: string
     mediaType: 'movie' | 'tv'
+    isActive?: boolean
     onSwipe: (id: string, direction: 'up' | 'down' | 'left' | 'right', mediaType: 'movie' | 'tv', status?: 'swiped' | 'watching' | 'watched') => void
 }
 
-export const SwipeCard = ({ id, title, image, rating, year, overview, mediaType, onSwipe }: SwipeCardProps) => {
+export const SwipeCard = ({ id, title, image, rating = 0, year, overview, mediaType, isActive = true, onSwipe }: SwipeCardProps) => {
     const [isExpanded, setIsExpanded] = React.useState(false)
     const x = useMotionValue(0)
     const y = useMotionValue(0)
@@ -55,11 +56,11 @@ export const SwipeCard = ({ id, title, image, rating, year, overview, mediaType,
         <motion.div
             layout
             style={{ x, y, rotate, opacity }}
-            drag={!isExpanded}
+            drag={!isExpanded && isActive}
             dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
             onDragEnd={handleDragEnd}
-            onClick={() => !isExpanded && setIsExpanded(true)}
-            className={`${styles.card} glass ${isExpanded ? styles.cardExpanded : ''}`}
+            onClick={() => isActive && !isExpanded && setIsExpanded(true)}
+            className={`${styles.card} glass ${isExpanded ? styles.cardExpanded : ''} ${isActive ? styles.cardActive : ''}`}
         >
             <div className={styles.detailsScroll}>
                 <div className={styles.image} style={{ backgroundImage: `url(${image})` }} />

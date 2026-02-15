@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { fetchTMDB, endpoints, getTMDBImageUrl } from '@/lib/tmdb'
 
 export async function GET(request: Request) {
@@ -10,9 +10,11 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'groupId is required' }, { status: 400 })
     }
 
+    const client = supabaseAdmin || supabase
+
     try {
         // 1. Fetch matches from our Supabase view
-        const { data: matches, error } = await supabase
+        const { data: matches, error } = await client
             .from('group_matches')
             .select('*')
             .eq('group_id', groupId)

@@ -1,19 +1,36 @@
 .container {
     padding: 0 24px 100px;
     animation: fadeIn 0.4s ease-out;
+    overflow-y: auto;
+    height: 100%;
+    padding-bottom: 120px;
+    /* Ensure safe area for bottom nav */
 }
 
 .header {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 12px 0 24px;
+    margin: 12px 0 16px;
 }
 
 .title {
     font-size: 1.5rem;
     font-weight: 800;
     letter-spacing: -0.02em;
+}
+
+.count {
+    background: var(--accent);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 800;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .loading {
@@ -24,23 +41,330 @@
     color: var(--muted);
 }
 
+/* ── Filter Bar (inline) ── */
+.filterBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+}
+
+.filterBar::-webkit-scrollbar {
+    display: none;
+}
+
+.filterToggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    white-space: nowrap;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.filterToggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--foreground);
+}
+
+.filterBadge {
+    background: var(--accent);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 800;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quickChips {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.quickChip {
+    padding: 6px 12px;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.quickChip:hover {
+    color: var(--foreground);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.quickChipActive {
+    background: rgba(219, 39, 119, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.clearFilters {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.resultCount {
+    font-size: 0.7rem;
+    color: var(--muted);
+    white-space: nowrap;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* ── Filter Panel (drawer) ── */
+.filterBackdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    display: flex;
+    align-items: flex-end;
+    animation: backdropFadeIn 0.2s ease-out;
+}
+
+@keyframes backdropFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.filterPanel {
+    width: 100%;
+    max-height: 85vh;
+    background: var(--surface);
+    border-radius: 28px 28px 0 0;
+    display: flex;
+    flex-direction: column;
+    animation: panelSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: none;
+}
+
+@keyframes panelSlideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+.filterPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+}
+
+.filterPanelTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.filterHeaderActions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.resetBtn {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.closeBtn {
+    color: var(--muted);
+    padding: 4px;
+}
+
+.filterScroll {
+    overflow-y: auto;
+    padding: 8px 24px 24px;
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+}
+
+.filterSection {
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.filterSection:last-child {
+    border-bottom: none;
+}
+
+.filterSectionTitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 12px;
+}
+
+/* ── Chips (shared across filter panel) ── */
+.chipRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.genreGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chip {
+    padding: 8px 16px;
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.chip:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--foreground);
+}
+
+.chipActive {
+    background: rgba(219, 39, 119, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.chipActive:hover {
+    background: rgba(219, 39, 119, 0.25);
+}
+
+.chipSmall {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+}
+
+/* ── Family filter row ── */
+.familyFilterRow {
+    display: flex;
+    flex-direction: column;
+}
+
+.filterSubLabel {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+}
+
+/* ── Apply bar at bottom of filter panel ── */
+.applyBar {
+    padding: 16px 24px calc(16px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+}
+
+.applyBtn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--accent);
+    color: white;
+    font-size: 1rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.2s ease;
+}
+
+.applyBtn:hover {
+    filter: brightness(1.15);
+    transform: scale(1.01);
+}
+
+.applyBtn:active {
+    transform: scale(0.98);
+}
+
+/* ── Card Grid ── */
 .grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 12px;
 }
 
 .card {
+    border-radius: 20px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.cardUpdating {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.cardMain {
     display: flex;
     gap: 16px;
     padding: 12px;
-    border-radius: 20px;
     align-items: flex-start;
 }
 
 .poster {
-    width: 90px;
-    height: 135px;
+    width: 80px;
+    height: 120px;
     border-radius: 12px;
     background-size: cover;
     background-position: center;
@@ -52,75 +376,340 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
+    min-width: 0;
 }
 
 .movieTitle {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .year {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     color: var(--muted);
 }
 
+/* ── Pills / Badges ── */
 .pills {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin: 4px 0;
+    gap: 6px;
+    margin: 2px 0;
 }
 
 .pill {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
+    gap: 4px;
+    padding: 3px 8px;
     border-radius: 20px;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
 }
 
+.pillRating {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
 .pillWatching {
-    background: rgba(59, 130, 246, 0.2);
+    background: rgba(59, 130, 246, 0.15);
     color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.pillWatched {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .pillMatch {
-    background: rgba(16, 185, 129, 0.2);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.2);
 }
 
+.pillTmdb {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--muted);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Family Scores (inline on card) ── */
+.familyScores {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.familyScorePill {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: rgba(168, 85, 247, 0.08);
+    border: 1px solid rgba(168, 85, 247, 0.12);
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+/* ── Action Buttons ── */
 .actions {
-    margin-top: auto;
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
 }
 
+.editBtn,
 .actionBtn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #ddd;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--muted);
     background: rgba(255, 255, 255, 0.05);
-    padding: 8px 12px;
+    padding: 6px 12px;
     border-radius: 10px;
     transition: all 0.2s;
 }
 
+.editBtn:hover,
 .actionBtn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: white;
 }
 
+.editBtnActive {
+    background: rgba(219, 39, 119, 0.15);
+    color: var(--accent);
+}
+
+/* ── Tonight Button ── */
+.tonightBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px 12px;
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+
+.tonightBtn:hover {
+    background: rgba(251, 191, 36, 0.1);
+    color: #fbbf24;
+}
+
+.tonightBtnActive {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.15);
+}
+
+/* ── Expanded Edit Panel ── */
+.editPanel {
+    padding: 0 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: slideDown 0.25s ease-out;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin-top: 4px;
+    padding-top: 14px;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.editSection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.editLabel {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+
+/* ── Genre Tags (in expanded panel) ── */
+.genreTags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.genreTag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Score Buttons ── */
+.scoreRow {
+    display: flex;
+    gap: 6px;
+}
+
+.scoreBtn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.scoreBtn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.scoreBtnActive {
+    background: rgba(219, 39, 119, 0.15);
+    border-color: var(--accent);
+}
+
+.scoreEmoji {
+    font-size: 1.25rem;
+}
+
+.scoreLabel {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+}
+
+.scoreBtnActive .scoreLabel {
+    color: var(--accent);
+}
+
+/* ── Status Buttons ── */
+.statusRow {
+    display: flex;
+    gap: 6px;
+}
+
+.statusBtn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.statusBtn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--foreground);
+}
+
+.statusBtnActive {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #60a5fa;
+}
+
+/* ── Remove Button ── */
+.removeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.08);
+    border: 1px solid rgba(248, 113, 113, 0.15);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.removeBtn:hover {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* ── Empty State ── */
 .empty {
     text-align: center;
     padding: 60px 0;
     color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.clearFiltersBtn {
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: rgba(219, 39, 119, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(219, 39, 119, 0.3);
+    transition: all 0.2s;
+}
+
+.clearFiltersBtn:hover {
+    background: rgba(219, 39, 119, 0.25);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
