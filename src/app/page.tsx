@@ -33,8 +33,9 @@ export default function Home() {
   const { user, profile, groups, activeGroup, loading: authLoading, switchGroup } = useAuth()
 
   const [items, setItems] = useState<Movie[]>([])
-  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [activeTab, setActiveTab] = useState<'discovery' | 'matches' | 'watchlist' | 'tonight' | 'family'>('discovery')
   const [filters, setFilters] = useState<FilterState>({ ...DEFAULT_FILTERS })
   const [pendingFilters, setPendingFilters] = useState<FilterState>({ ...DEFAULT_FILTERS })
@@ -55,6 +56,7 @@ export default function Home() {
     if (groupId) {
       setItems([])
       setPage(1)
+      setHasMore(true)
       setSwipedIdsLoaded(false)
     }
   }, [groupId])
@@ -116,8 +118,11 @@ export default function Home() {
   }, [userId, groupId])
 
   const fetchFeed = useCallback(async () => {
-    if (loading && items.length > 0) return;
-    if (page > 500) return;
+    if (loading || !hasMore) return;
+    if (page > 500) {
+      setHasMore(false)
+      return;
+    }
     if (!swipedIdsLoaded) return;
 
     try {
@@ -155,14 +160,29 @@ export default function Home() {
         if (unswiped.length > 0) {
           setItems((prev) => [...prev, ...unswiped])
         }
-        setPage((p) => p + 1)
+
+        // If we got results but they were all filtered, we should probably try the next page immediately
+        // instead of waiting for the user to swipe.
+        if (data.results.length > 0 && unswiped.length === 0) {
+          setPage(p => p + 1)
+          // We don't return here, the next useEffect will trigger again if items.length is still low
+        } else if (data.results.length > 0) {
+          setPage((p) => p + 1)
+        }
+
+        // If we got fewer results than expected or empty, we might be at the end
+        if (data.results.length === 0 || (data.total_pages && page >= data.total_pages)) {
+          setHasMore(false)
+        }
+      } else {
+        setHasMore(false)
       }
     } catch (err) {
       console.error('Failed to fetch feed:', err)
     } finally {
       setLoading(false)
     }
-  }, [page, loading, items.length, filters, buildQuery, swipedIds, swipedIdsLoaded])
+  }, [page, loading, hasMore, filters, buildQuery, swipedIds, swipedIdsLoaded])
 
   useEffect(() => {
     if (swipedIdsLoaded) fetchFeed()
@@ -210,6 +230,7 @@ export default function Home() {
     setFilters({ ...pendingFilters })
     setItems([])
     setPage(1)
+    setHasMore(true)
     setShowFilters(false)
   }
 
@@ -426,9 +447,10 @@ export default function Home() {
           ) : (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}><Tv className="w-10 h-10" /></div>
-              <h3 className={styles.emptyTitle}>No more shows!</h3>
-              <p className={styles.emptyText}>Try adjusting your filters or start over.</p>
-              <button onClick={handleReset} className={styles.resetButton}>Start Over</button>
+              <h3 className={styles.emptyTitle}>No more options!</h3>
+              <p className={styles.emptyText}>Change filters to see more options.</p>
+              <button onClick={openFilters} className={styles.resetButton}>Adjust Filters</button>
+              <button onClick={handleReset} className={styles.resetSecondary}>Start Over</button>
             </div>
           )
         ) : activeTab === 'matches' ? (

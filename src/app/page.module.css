@@ -200,6 +200,16 @@
   margin-top: 24px;
 }
 
+.resetSecondary {
+  display: block;
+  width: 100%;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 8px;
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+
 .nav {
   position: fixed;
   bottom: 0;
