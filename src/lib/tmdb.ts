@@ -98,6 +98,7 @@ export interface DiscoveryFilters {
   query?: string       // New: Search query
   isFree?: string      // New: "true" or "false"
   isClassic?: string   // New: "true" or "false"
+  language?: string    // New: 'en', 'es', etc.
 }
 
 export async function getDiscoveryFeed(filters: DiscoveryFilters = {}) {
@@ -118,7 +119,7 @@ export async function getDiscoveryFeed(filters: DiscoveryFilters = {}) {
   }
 
   // 2. Normal Discovery Mode
-  const hasFilters = filters.genres || filters.ageRating || filters.minRating || filters.runtimes || filters.newReleases === 'true' || !!filters.watchProviders || filters.isFree === 'true' || filters.isClassic === 'true'
+  const hasFilters = filters.genres || filters.ageRating || filters.minRating || filters.runtimes || filters.newReleases === 'true' || !!filters.watchProviders || filters.isFree === 'true' || filters.isClassic === 'true' || !!filters.language
 
   if (!hasFilters && type === 'all') {
     return fetchTMDB(endpoints.trending('all'), { page: page.toString() })
@@ -158,6 +159,11 @@ async function fetchFilteredDiscover(mediaType: 'movie' | 'tv', filters: Discove
     sort_by: filters.sortBy || 'popularity.desc',
     include_adult: 'false',
     'vote_count.gte': '50',
+  }
+
+  // Language
+  if (filters.language) {
+    params.with_original_language = filters.language
   }
 
   // Watch Providers (Streaming Services)

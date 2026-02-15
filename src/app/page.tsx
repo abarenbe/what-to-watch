@@ -69,6 +69,7 @@ export default function Home() {
     if (f.ageRating.length > 0) params.set('ageRating', f.ageRating.join(','))
     if (f.minRating) params.set('minRating', f.minRating)
     if (f.runtimes.length > 0) params.set('runtimes', f.runtimes.join(','))
+    if (f.language) params.set('language', f.language)
     if (f.newReleases) params.set('newReleases', 'true')
     if (f.isFree) params.set('isFree', 'true')
     if (f.isClassic) params.set('isClassic', 'true')

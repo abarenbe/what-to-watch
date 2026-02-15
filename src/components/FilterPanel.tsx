@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { X, Sparkles, Clock, Star, Baby, SlidersHorizontal } from 'lucide-react'
+import { X, Sparkles, Clock, Star, Baby, SlidersHorizontal, Languages } from 'lucide-react'
 import styles from './FilterPanel.module.css'
 
 const GENRE_OPTIONS = [
@@ -38,12 +38,24 @@ const SORT_OPTIONS = [
     { label: 'Oldest', value: 'primary_release_date.asc' },
 ]
 
+const LANGUAGE_OPTIONS = [
+    { label: 'All Languages', value: '' },
+    { label: 'English', value: 'en' },
+    { label: 'Spanish', value: 'es' },
+    { label: 'French', value: 'fr' },
+    { label: 'German', value: 'de' },
+    { label: 'Japanese', value: 'ja' },
+    { label: 'Korean', value: 'ko' },
+    { label: 'Hindi', value: 'hi' },
+]
+
 export interface FilterState {
     type: 'all' | 'movie' | 'tv'
     genres: string[]
     ageRating: string[]
     minRating: string
     runtimes: string[] // e.g. ['<90', '90-120']
+    language: string
     newReleases: boolean
     isFree: boolean
     isClassic: boolean
@@ -57,6 +69,7 @@ export const DEFAULT_FILTERS: FilterState = {
     ageRating: [],
     minRating: '',
     runtimes: [],
+    language: '',
     newReleases: false,
     isFree: false,
     isClassic: false,
@@ -87,6 +100,7 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
         filters.ageRating.length > 0,
         filters.minRating !== '',
         filters.runtimes.length > 0,
+        filters.language !== '',
         filters.newReleases,
         filters.sortBy !== 'popularity.desc',
     ].filter(Boolean).length
@@ -206,6 +220,24 @@ export const FilterPanel = ({ filters, onChange, onClose, onApply }: FilterPanel
                             </div>
                         </section>
                     )}
+
+                    {/* Language */}
+                    <section className={styles.section}>
+                        <h3 className={styles.sectionTitle}>
+                            <Languages className="w-4 h-4" /> Language
+                        </h3>
+                        <div className={styles.chipRow}>
+                            {LANGUAGE_OPTIONS.map(opt => (
+                                <button
+                                    key={opt.label}
+                                    onClick={() => update({ language: opt.value })}
+                                    className={`${styles.chip} ${filters.language === opt.value ? styles.chipActive : ''}`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </section>
 
                     {/* Minimum Rating */}
                     <section className={styles.section}>
