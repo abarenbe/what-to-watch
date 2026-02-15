@@ -1,0 +1,104 @@
+.container {
+    padding: 0 24px 100px;
+    animation: fadeIn 0.4s ease-out;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 12px 0 24px;
+}
+
+.title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.card {
+    display: flex;
+    gap: 16px;
+    padding: 12px;
+    border-radius: 20px;
+    align-items: center;
+}
+
+.poster {
+    width: 80px;
+    height: 120px;
+    border-radius: 12px;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.matchHeader {
+    display: flex;
+    flex-direction: column;
+}
+
+.movieTitle {
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.year {
+    font-size: 0.875rem;
+    color: var(--muted);
+}
+
+.stats {
+    display: flex;
+    gap: 12px;
+}
+
+.scoreBadge,
+.userBadge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.scoreBadge span {
+    color: #fff;
+}
+
+.userBadge {
+    color: var(--muted);
+}
+
+.empty {
+    text-align: center;
+    padding: 60px 0;
+    color: var(--muted);
+}
