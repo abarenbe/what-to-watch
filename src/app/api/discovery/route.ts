@@ -15,33 +15,11 @@ export async function GET(request: Request) {
         let providerIds: number[] = []
 
         if (groupId) {
-            // Get all members of the group
-            const { data: members } = await client
-                .from('group_members')
-                .select('user_id')
-                .eq('group_id', groupId)
-
-            if (members && members.length > 0) {
-                const memberIds = members.map(m => m.user_id)
-                // Get providers for all members (UNION logic - if ANYONE has it, show it)
-                // Or INTERSECTION? "We want to watch together" -> Intersection?
-                // Usually family sharing implies Union (I have Netflix, you have Hulu = we have both).
-                // Let's use Union.
-                const { data: providers } = await client
-                    .from('user_providers')
-                    .select('provider_id')
-                    .in('user_id', memberIds)
-
-                if (providers) {
-                    providerIds = providers.map(p => p.provider_id)
-                }
-            }
-        } else if (userId) {
-            // Check just for this user
+            // Get providers associated with the group
             const { data: providers } = await client
-                .from('user_providers')
+                .from('group_providers')
                 .select('provider_id')
-                .eq('user_id', userId)
+                .eq('group_id', groupId)
 
             if (providers) {
                 providerIds = providers.map(p => p.provider_id)

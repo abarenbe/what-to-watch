@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useAuth } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import { Users, Plus, LogIn, Copy, Check, Loader2, User, LogOut, ChevronRight, Crown, Trash2 } from 'lucide-react'
 import styles from './GroupSetup.module.css'
 
@@ -76,12 +77,29 @@ export function GroupSetup({ mode = 'setup', onComplete }: GroupSetupProps) {
         }
         setLoading(true)
         setError(null)
-        const { error: joinError } = await joinGroup(inviteCode.trim())
+        const { group: joinedGroup, error: joinError } = await joinGroup(inviteCode.trim())
         if (joinError) {
             setError(joinError)
-        } else {
+        } else if (joinedGroup) {
+            // Check if group already has providers
+            const { data: providers } = await supabase
+                .from('group_providers')
+                .select('id')
+                .eq('group_id', joinedGroup.id)
+                .limit(1)
+
             setInviteCode('')
-            setStep('services')
+
+            if (providers && providers.length > 0) {
+                // Group already has services, skip to complete
+                if (mode === 'setup' && onComplete) {
+                    onComplete()
+                } else {
+                    setStep('manage')
+                }
+            } else {
+                setStep('services')
+            }
         }
         setLoading(false)
     }

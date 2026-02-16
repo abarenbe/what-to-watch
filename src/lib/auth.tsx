@@ -36,7 +36,7 @@ interface AuthContextType {
     signOut: () => Promise<void>
     updateProfile: (updates: Partial<Profile>) => Promise<{ error: string | null }>
     createGroup: (name: string) => Promise<{ group: Group | null, error: string | null }>
-    joinGroup: (inviteCode: string) => Promise<{ error: string | null }>
+    joinGroup: (inviteCode: string) => Promise<{ group: Group | null, error: string | null }>
     leaveGroup: (groupId: string) => Promise<{ error: string | null }>
     switchGroup: (groupId: string) => Promise<void>
     refreshProfile: () => Promise<void>
@@ -292,7 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const joinGroup = async (inviteCode: string) => {
-        if (!user) return { error: 'Not authenticated' }
+        if (!user) return { group: null, error: 'Not authenticated' }
 
         const { data: foundGroup, error: lookupError } = await supabase
             .from('groups')
@@ -301,7 +301,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .single()
 
         if (lookupError || !foundGroup) {
-            return { error: 'Invalid invite code. Check the code and try again.' }
+            return { group: null, error: 'Invalid invite code. Check the code and try again.' }
         }
 
         // Check if already a member
@@ -313,14 +313,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .single()
 
         if (existing) {
-            return { error: 'You\'re already a member of this group!' }
+            return { group: foundGroup, error: 'You\'re already a member of this group!' }
         }
 
         const { error: joinError } = await supabase
             .from('group_members')
             .insert({ user_id: user.id, group_id: foundGroup.id, role: 'member' })
 
-        if (joinError) return { error: joinError.message }
+        if (joinError) return { group: null, error: joinError.message }
 
         // Set as active group
         await supabase
@@ -337,7 +337,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setActiveGroup(foundGroup)
         setProfile(prev => prev ? { ...prev, active_group_id: foundGroup.id } : null)
 
-        return { error: null }
+        return { group: foundGroup, error: null }
     }
 
     const leaveGroup = async (groupId: string) => {

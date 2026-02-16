@@ -4,9 +4,16 @@ import { supabase, supabaseAdmin } from '@/lib/supabase'
 const TMDB_API_KEY = process.env.TMDB_API_KEY
 const TMDB_API_BASE = 'https://api.themoviedb.org/3'
 
+interface TMDBProvider {
+    provider_id: number
+    provider_name: string
+    logo_path: string | null
+    display_priority: number
+}
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
+    const groupId = searchParams.get('groupId')
 
     try {
         // 1. Fetch available providers from TMDb
@@ -15,11 +22,8 @@ export async function GET(request: Request) {
         if (!tmdbRes.ok) throw new Error('Failed to fetch from TMDb')
         const tmdbData = await tmdbRes.json()
 
-        // Filter to popular ones to avoid 100s of obscure platforms
-        // (Just returning all sorted by display_priority is usually handled by TMDB)
-        const allProviders: any[] = tmdbData.results || []
+        const allProviders: TMDBProvider[] = tmdbData.results || []
 
-        // Sort by priority (lower is better, e.g. Netflix/Hulu first)
         allProviders.sort((a, b) => {
             const pA = a.display_priority ?? 999
             const pB = b.display_priority ?? 999
@@ -27,14 +31,14 @@ export async function GET(request: Request) {
             return a.provider_name.localeCompare(b.provider_name)
         })
 
-        // 2. Fetch user's selected providers if userId is present
+        // 2. Fetch group's selected providers if groupId is present
         let selectedIds: number[] = []
-        if (userId) {
+        if (groupId) {
             const client = supabaseAdmin || supabase
             const { data } = await client
-                .from('user_providers')
+                .from('group_providers')
                 .select('provider_id')
-                .eq('user_id', userId)
+                .eq('group_id', groupId)
 
             if (data) {
                 selectedIds = data.map(p => p.provider_id)
@@ -54,31 +58,31 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const { userId, providerIds } = await request.json()
+        const { groupId, providerIds } = await request.json()
 
-        if (!userId || !Array.isArray(providerIds)) {
+        if (!groupId || !Array.isArray(providerIds)) {
             return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
         }
 
         const client = supabaseAdmin || supabase
 
-        // 1. Delete existing selections
+        // 1. Delete existing selections for this group
         const { error: deleteError } = await client
-            .from('user_providers')
+            .from('group_providers')
             .delete()
-            .eq('user_id', userId)
+            .eq('group_id', groupId)
 
         if (deleteError) throw deleteError
 
         // 2. Insert new selections
         if (providerIds.length > 0) {
             const rows = providerIds.map((pid: number) => ({
-                user_id: userId,
+                group_id: groupId,
                 provider_id: pid
             }))
 
             const { error: insertError } = await client
-                .from('user_providers')
+                .from('group_providers')
                 .insert(rows)
 
             if (insertError) throw insertError

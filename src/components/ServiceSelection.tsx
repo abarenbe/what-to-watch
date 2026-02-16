@@ -17,19 +17,24 @@ interface Provider {
 }
 
 export function ServiceSelection({ onComplete }: ServiceSelectionProps) {
-    const { user } = useAuth()
+    const { activeGroup } = useAuth()
     const [providers, setProviders] = useState<Provider[]>([])
     const [selectedIds, setSelectedIds] = useState<number[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
 
+    const groupId = activeGroup?.id
+
     useEffect(() => {
-        if (!user) return
+        if (!groupId) {
+            setLoading(false)
+            return
+        }
 
         async function fetchProviders() {
             try {
-                const res = await fetch(`/api/providers?userId=${user?.id}`)
+                const res = await fetch(`/api/providers?groupId=${groupId}`)
                 if (!res.ok) throw new Error('Failed to load providers')
                 const data = await res.json()
                 setProviders(data.providers || [])
@@ -42,7 +47,7 @@ export function ServiceSelection({ onComplete }: ServiceSelectionProps) {
         }
 
         fetchProviders()
-    }, [user])
+    }, [groupId])
 
     const toggleProvider = (id: number) => {
         setSelectedIds(prev =>
@@ -53,18 +58,17 @@ export function ServiceSelection({ onComplete }: ServiceSelectionProps) {
     }
 
     const handleSave = async () => {
-        if (!user) return
+        if (!groupId) return
         setSaving(true)
         try {
             await fetch('/api/providers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: user.id, providerIds: selectedIds })
+                body: JSON.stringify({ groupId, providerIds: selectedIds })
             })
             onComplete()
         } catch (err) {
             console.error('Failed to save', err)
-            // Still retrieve feed even if save failed? Usually yes (optimistic)
             onComplete()
         } finally {
             setSaving(false)
