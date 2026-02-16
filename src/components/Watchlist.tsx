@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { BookMarked, Play, Check, Filter, X, Clock, Star, SlidersHorizontal, Users } from 'lucide-react'
+import { BookMarked, Play, Check, X, Clock, Star, SlidersHorizontal, Users } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { WatchlistCard } from './WatchlistCard'
 import styles from './Watchlist.module.css'
