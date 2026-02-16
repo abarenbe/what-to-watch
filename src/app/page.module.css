@@ -10,8 +10,8 @@
 .header {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: calc(20px + var(--safe-area-top)) 24px 16px;
+  gap: 8px;
+  padding: calc(12px + var(--safe-area-top)) 24px 8px;
 }
 
 .topBar {
@@ -156,9 +156,11 @@
 
 .mainCentered {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  /* Move cards up */
   justify-content: center;
-  padding: 20px;
+  padding: 10px 20px 80px;
+  /* Reduced top padding, more bottom padding for nav spacing */
 }
 
 .emptyState {

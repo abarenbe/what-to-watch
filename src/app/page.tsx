@@ -85,7 +85,14 @@ export default function Home() {
     params.set('page', pg.toString())
     if (userId) params.set('userId', userId)
     if (groupId) params.set('groupId', groupId)
-    if (f.query) params.set('query', f.query)
+
+    // If we have a search query, prioritize it and ignore other filters
+    if (f.query) {
+      params.set('query', f.query)
+      params.set('type', f.type)
+      return params.toString()
+    }
+
     params.set('type', f.type)
     if (f.genres.length > 0) params.set('genres', f.genres.join(','))
     if (f.ageRating.length > 0) params.set('ageRating', f.ageRating.join(','))
@@ -264,7 +271,19 @@ export default function Home() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setFilters(prev => ({ ...prev, query: searchTerm }))
+    // Clear all filters but keep query
+    setFilters({
+      ...DEFAULT_FILTERS,
+      query: searchTerm,
+      genres: [],
+      ageRating: [],
+      minRating: '',
+      language: '',
+      newReleases: false,
+      familyLiked: false,
+      isFree: false,
+      isClassic: false
+    })
     setItems([])
     setPage(1)
     if (!searchTerm) setShowSearch(false)
@@ -374,75 +393,138 @@ export default function Home() {
               </div>
             )}
 
-            {/* Group Switcher (if multiple groups) */}
-            {groups.length > 1 ? (
-              <div style={{ position: 'relative' }}>
-                <button
-                  className={`${styles.iconButton} glass`}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '8px 14px', borderRadius: 20, fontSize: '0.8rem', fontWeight: 700
-                  }}
-                  onClick={() => setShowGroupPicker(!showGroupPicker)}
-                >
-                  <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {activeGroup?.name || 'Group'}
-                  </span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-                {showGroupPicker && (
-                  <>
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 50 }} onClick={() => setShowGroupPicker(false)} />
-                    <div style={{
-                      position: 'absolute', right: 0, top: '100%', marginTop: 8, zIndex: 51,
-                      background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: 16, padding: 8, minWidth: 180,
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
-                    }}>
-                      {groups.map(m => (
-                        <button
-                          key={m.group.id}
-                          onClick={() => { switchGroup(m.group.id); setShowGroupPicker(false) }}
-                          style={{
-                            display: 'block', width: '100%', padding: '10px 14px', borderRadius: 10,
-                            fontSize: '0.85rem', fontWeight: activeGroup?.id === m.group.id ? 800 : 500,
-                            color: activeGroup?.id === m.group.id ? 'var(--accent)' : 'var(--foreground)',
-                            textAlign: 'left', transition: 'background 0.15s',
-                            background: activeGroup?.id === m.group.id ? 'rgba(219,39,119,0.08)' : 'transparent'
-                          }}
-                        >
-                          {m.group.name}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            ) : (
+            {/* Combined Action Menu */}
+            <div style={{ position: 'relative' }}>
               <button
                 className={`${styles.iconButton} glass`}
-                style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: groups.length > 1 ? '8px 14px' : '8px',
+                  borderRadius: 20, fontSize: '0.8rem', fontWeight: 700
+                }}
+                onClick={() => setShowGroupPicker(!showGroupPicker)}
               >
-                <Settings className="w-5 h-5" />
+                {groups.length > 1 ? (
+                  <>
+                    <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {activeGroup?.name || 'Group'}
+                    </span>
+                    <ChevronDown className="w-4 h-4" />
+                  </>
+                ) : (
+                  <Settings className="w-5 h-5" />
+                )}
               </button>
-            )}
+
+              {showGroupPicker && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 50 }} onClick={() => setShowGroupPicker(false)} />
+                  <div style={{
+                    position: 'absolute', right: 0, top: '100%', marginTop: 8, zIndex: 51,
+                    background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 16, padding: 8, minWidth: 200,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)'
+                  }}>
+                    {/* Groups Section */}
+                    {groups.length > 1 && (
+                      <div style={{ marginBottom: 8, padding: '4px 8px' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>
+                          Switch Group
+                        </div>
+                        {groups.map(m => (
+                          <button
+                            key={m.group.id}
+                            onClick={() => { switchGroup(m.group.id); setShowGroupPicker(false) }}
+                            style={{
+                              display: 'block', width: '100%', padding: '10px 14px', borderRadius: 10,
+                              fontSize: '0.85rem', fontWeight: activeGroup?.id === m.group.id ? 800 : 500,
+                              color: activeGroup?.id === m.group.id ? 'var(--accent)' : 'var(--foreground)',
+                              textAlign: 'left', transition: 'background 0.15s',
+                              background: activeGroup?.id === m.group.id ? 'rgba(219,39,119,0.08)' : 'transparent'
+                            }}
+                          >
+                            {m.group.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Filters Section */}
+                    {activeTab === 'discovery' && (
+                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 8, marginBottom: 8 }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 800, textTransform: 'uppercase', padding: '4px 8px', marginBottom: 4 }}>
+                          Discovery
+                        </div>
+                        <button
+                          onClick={() => { openFilters(); setShowGroupPicker(false) }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px',
+                            borderRadius: 10, fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)',
+                            textAlign: 'left'
+                          }}
+                        >
+                          <SlidersHorizontal className="w-4 h-4 text-accent" />
+                          <span>Advanced Filters</span>
+                          {activeFilterCount > 0 && (
+                            <span style={{
+                              background: 'var(--accent)', color: 'white', fontSize: '0.6rem',
+                              width: 16, height: 16, borderRadius: '50%',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto'
+                            }}>
+                              {activeFilterCount}
+                            </span>
+                          )}
+                        </button>
+
+                        {quickPresets.map(preset => (
+                          <button
+                            key={preset.label}
+                            onClick={() => { preset.apply(); setShowGroupPicker(false) }}
+                            style={{
+                              display: 'block', width: '100%', padding: '10px 14px', borderRadius: 10,
+                              fontSize: '0.85rem', fontWeight: 500, color: 'var(--muted)',
+                              textAlign: 'left'
+                            }}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Utils Section */}
+                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 8 }}>
+                      <button
+                        onClick={() => { setActiveTab('family'); setShowGroupPicker(false) }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px',
+                          borderRadius: 10, fontSize: '0.85rem', fontWeight: 500, color: 'var(--foreground)',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <Users className="w-4 h-4" />
+                        <span>Manage Groups</span>
+                      </button>
+                      <button
+                        onClick={() => { handleReset(); setShowGroupPicker(false) }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px',
+                          borderRadius: 10, fontSize: '0.85rem', fontWeight: 500, color: 'var(--muted)',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Start Over</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
-
-        {activeTab === 'discovery' && (
-          <div className={styles.filterBar}>
-            <button onClick={openFilters} className={`${styles.filterToggle} glass`}>
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>Filters</span>
-              {activeFilterCount > 0 && <span className={styles.filterBadge}>{activeFilterCount}</span>}
-            </button>
-            {quickPresets.map(preset => (
-              <button key={preset.label} onClick={preset.apply} className={`${styles.filterChip} glass`}>
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        )}
       </header>
 
       {/* Main Content */}
