@@ -17,6 +17,7 @@ interface SwipeCardProps {
 
 export const SwipeCard = ({ id, title, image, rating = 0, year, overview, mediaType, isActive = true, onSwipe }: SwipeCardProps) => {
     const [isExpanded, setIsExpanded] = React.useState(false)
+    const [isTextExpanded, setIsTextExpanded] = React.useState(false)
     const x = useMotionValue(0)
     const y = useMotionValue(0)
 
@@ -29,7 +30,7 @@ export const SwipeCard = ({ id, title, image, rating = 0, year, overview, mediaT
     const downOpacity = useTransform(y, [0, 80], [0, 1])
 
     const handleDragEnd = (_: unknown, info: PanInfo) => {
-        if (isExpanded) return
+        // Only trigger swipe if we're not scrolling the details
         const threshold = 100
         if (info.offset.x > threshold) onSwipe(id, 'right', mediaType)
         else if (info.offset.x < -threshold) onSwipe(id, 'left', mediaType)
@@ -46,6 +47,24 @@ export const SwipeCard = ({ id, title, image, rating = 0, year, overview, mediaT
         }
     }
 
+    const toggleExpand = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (isExpanded) {
+            setIsExpanded(false)
+        } else {
+            setIsExpanded(true)
+        }
+    }
+
+    const handleSkip = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (isExpanded) {
+            setIsExpanded(false)
+        } else {
+            onSwipe(id, 'left', mediaType)
+        }
+    }
+
     const openSearch = (e: React.MouseEvent) => {
         e.stopPropagation()
         const mediaLabel = mediaType === 'tv' ? 'tv show' : 'movie'
@@ -54,19 +73,18 @@ export const SwipeCard = ({ id, title, image, rating = 0, year, overview, mediaT
 
     return (
         <motion.div
-            layout
             style={{ x, y, rotate, opacity }}
-            drag={!isExpanded && isActive}
+            drag={isActive}
             dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
             onDragEnd={handleDragEnd}
-            onClick={() => isActive && !isExpanded && setIsExpanded(true)}
+            onClick={toggleExpand}
             className={`${styles.card} glass ${isExpanded ? styles.cardExpanded : ''} ${isActive ? styles.cardActive : ''}`}
         >
             <div className={styles.detailsScroll}>
                 <div className={styles.image} style={{ backgroundImage: `url(${image})` }} />
                 <div className={styles.overlay} />
 
-                <button className={styles.skipButton} onClick={(e) => handleAction(e, 'skip')}>
+                <button className={styles.skipButton} onClick={handleSkip}>
                     <X className="w-5 h-5" />
                 </button>
 
@@ -74,7 +92,7 @@ export const SwipeCard = ({ id, title, image, rating = 0, year, overview, mediaT
                     <div className={styles.header}>
                         <h2 className={styles.title}>{title}</h2>
                         {isExpanded && (
-                            <button onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}>
+                            <button onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }} className={styles.closeBtn}>
                                 <ChevronDown className="w-6 h-6" />
                             </button>
                         )}
@@ -103,7 +121,19 @@ export const SwipeCard = ({ id, title, image, rating = 0, year, overview, mediaT
                         </div>
                     </div>
 
-                    <p className={styles.synopsis}>{overview}</p>
+                    <div className={styles.synopsisWrapper}>
+                        <p className={`${styles.synopsis} ${isTextExpanded ? styles.synopsisExpanded : ''}`}>
+                            {overview}
+                        </p>
+                        {!isExpanded && overview.length > 100 && (
+                            <button
+                                className={styles.readMore}
+                                onClick={(e) => { e.stopPropagation(); setIsTextExpanded(!isTextExpanded); }}
+                            >
+                                {isTextExpanded ? 'Show less' : 'Read more...'}
+                            </button>
+                        )}
+                    </div>
 
                     <AnimatePresence>
                         {isExpanded && (
