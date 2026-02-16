@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { BookMarked, Users, ExternalLink, Play, Trash2, Check, ChevronDown, ChevronUp, Moon, Film, Tv, Filter, X, Clock, Star, Baby, SlidersHorizontal } from 'lucide-react'
+import { BookMarked, Users, ExternalLink, Play, Trash2, Check, Moon, Film, Tv, Filter, X, Clock, Star, Baby, SlidersHorizontal, Eye } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import styles from './Watchlist.module.css'
 
 interface FamilyScore {
@@ -90,8 +91,8 @@ const DEFAULT_WATCHLIST_FILTERS: WatchlistFilters = {
 
 export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string }) => {
     const [items, setItems] = useState<WatchlistItem[]>([])
+    const [members, setMembers] = useState<{ id: string, name: string }[]>([])
     const [loading, setLoading] = useState(true)
-    const [expandedId, setExpandedId] = useState<string | null>(null)
     const [updatingId, setUpdatingId] = useState<string | null>(null)
     const [showFilters, setShowFilters] = useState(false)
     const [filters, setFilters] = useState<WatchlistFilters>({ ...DEFAULT_WATCHLIST_FILTERS })
@@ -101,7 +102,10 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
         try {
             const res = await fetch(`/api/watchlist?userId=${userId}&groupId=${groupId}`)
             const data = await res.json()
-            if (Array.isArray(data)) {
+            if (data.items) {
+                setItems(data.items)
+                setMembers(data.members || [])
+            } else if (Array.isArray(data)) {
                 setItems(data)
             }
         } catch (err) {
@@ -187,19 +191,7 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
         }
     }
 
-    const removeItem = async (item: WatchlistItem) => {
-        setUpdatingId(item.id)
-        try {
-            await fetch(`/api/swipe?userId=${userId}&movieId=${item.id}&mediaType=${item.mediaType}`, {
-                method: 'DELETE',
-            })
-            setItems(prev => prev.filter(i => i.id !== item.id))
-        } catch (err) {
-            console.error('Failed to remove item:', err)
-        } finally {
-            setUpdatingId(null)
-        }
-    }
+
 
     const toggleTonight = async (item: WatchlistItem) => {
         const isCurrentlyPicked = tonightPicks.has(item.id)
@@ -266,7 +258,9 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
         }
 
         // Family member filter
-        if (filters.familyMember !== 'all') {
+        if (filters.familyMember === 'none') {
+            if (i.othersCount > 0) return false
+        } else if (filters.familyMember !== 'all') {
             const memberScore = i.familyScores.find(fs => fs.userId === filters.familyMember)
             if (!memberScore || memberScore.score < filters.familyMinScore) return false
         } else if (filters.familyMinScore > 0) {
@@ -315,11 +309,7 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
     }
 
     // Collect unique family members from all items
-    const familyMembers = Array.from(
-        new Map(
-            items.flatMap(i => i.familyScores).map(fs => [fs.userId, fs.displayName])
-        ).entries()
-    ).map(([id, name]) => ({ id, name }))
+
 
     if (loading) {
         return <div className={styles.loading}>Loading your list...</div>
@@ -353,6 +343,12 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
 
                     {/* Quick-access status chips */}
                     <div className={styles.quickChips}>
+                        <button
+                            onClick={() => setFilters(prev => ({ ...prev, familyMember: prev.familyMember === 'none' ? 'all' : 'none' }))}
+                            className={`${styles.quickChip} ${filters.familyMember === 'none' ? styles.quickChipActive : ''}`}
+                        >
+                            🎯 Solo
+                        </button>
                         {STATUS_OPTIONS.map(opt => {
                             const count = items.filter(i => i.status === opt.value).length
                             if (count === 0) return null
@@ -493,10 +489,10 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
                             </section>
 
                             {/* Family Members' Ratings */}
-                            {familyMembers.length > 0 && (
+                            {members.length > 0 && (
                                 <section className={styles.filterSection}>
                                     <h3 className={styles.filterSectionTitle}>
-                                        <Users className="w-4 h-4" /> Family Ratings
+                                        <Users className="w-4 h-4" /> Liked By
                                     </h3>
                                     <div className={styles.familyFilterRow}>
                                         <div className={styles.chipRow}>
@@ -506,7 +502,17 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
                                             >
                                                 Anyone
                                             </button>
-                                            {familyMembers.map(m => (
+                                            <button
+                                                onClick={() => setFilters(prev => ({
+                                                    ...prev,
+                                                    familyMember: prev.familyMember === 'none' ? 'all' : 'none',
+                                                    familyMinScore: 0
+                                                }))}
+                                                className={`${styles.chip} ${filters.familyMember === 'none' ? styles.chipActive : ''}`}
+                                            >
+                                                🎯 Solo Picks
+                                            </button>
+                                            {members.map(m => (
                                                 <button
                                                     key={m.id}
                                                     onClick={() => setFilters(prev => ({
@@ -520,9 +526,9 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
                                                 </button>
                                             ))}
                                         </div>
-                                        {(filters.familyMember !== 'all' || filters.familyMinScore > 0) && (
-                                            <div className={styles.chipRow} style={{ marginTop: 8 }}>
-                                                <span className={styles.filterSubLabel}>Min rating:</span>
+                                        {(filters.familyMember !== 'all' && filters.familyMember !== 'none' || filters.familyMinScore > 0) && (
+                                            <div className={styles.chipRow} style={{ marginTop: 12 }}>
+                                                <span className={styles.filterSubLabel}>Rating:</span>
                                                 {SCORE_OPTIONS.filter(s => s.score > 0).map(opt => (
                                                     <button
                                                         key={opt.score}
@@ -629,163 +635,120 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
 
             {sortedItems.length > 0 ? (
                 <div className={styles.grid}>
-                    {sortedItems.map((item) => {
-                        const isExpanded = expandedId === item.id
-                        const isUpdating = updatingId === item.id
-                        const currentScore = SCORE_OPTIONS.find(s => s.score === item.myScore)
-                        const currentStatus = STATUS_OPTIONS.find(s => s.value === item.status)
+                    <AnimatePresence>
+                        {sortedItems.map((item) => {
+                            const isUpdating = updatingId === item.id
+                            const currentScore = SCORE_OPTIONS.find(s => s.score === item.myScore)
+                            const isTonight = tonightPicks.has(item.id)
 
-                        return (
-                            <div key={item.id} className={`${styles.card} glass fade-in ${isUpdating ? styles.cardUpdating : ''}`}>
-                                <div className={styles.cardMain}>
-                                    <div
-                                        className={styles.poster}
-                                        style={{ backgroundImage: `url(${item.image})` }}
-                                    />
-                                    <div className={styles.info}>
-                                        <div className={styles.movieHeader}>
-                                            <h3 className={styles.movieTitle}>{item.title}</h3>
-                                            <span className={styles.year}>
-                                                {item.year} · {item.mediaType === 'tv' ? 'TV' : 'Movie'}
-                                                {item.runtime > 0 && ` · ${item.runtime}m`}
-                                            </span>
+                            return (
+                                <div key={item.id} className={styles.swipeRow}>
+                                    {/* Action Backgrounds */}
+                                    <div className={styles.swipeBackground}>
+                                        <div className={`${styles.swipeAction} ${styles.swipeActionLeft}`}>
+                                            <Trash2 className="w-6 h-6" />
+                                            <span>Nope</span>
                                         </div>
-
-                                        <div className={styles.pills}>
-                                            {/* Current rating badge */}
-                                            <span className={`${styles.pill} ${styles.pillRating}`}>
-                                                {currentScore?.emoji} {currentScore?.label}
-                                            </span>
-
-                                            {/* Status badge */}
-                                            {item.status !== 'swiped' && currentStatus && (
-                                                <span className={`${styles.pill} ${item.status === 'watching' ? styles.pillWatching : styles.pillWatched}`}>
-                                                    {item.status === 'watching' ? <Play className="w-3 h-3 fill-current" /> : <Check className="w-3 h-3" />}
-                                                    {currentStatus.label}
-                                                </span>
-                                            )}
-
-                                            {/* TMDb rating */}
-                                            {item.tmdbRating > 0 && (
-                                                <span className={`${styles.pill} ${styles.pillTmdb}`}>
-                                                    ⭐ {item.tmdbRating.toFixed(1)}
-                                                </span>
-                                            )}
-
-                                            {item.othersCount > 0 && (
-                                                <span className={`${styles.pill} ${styles.pillMatch}`}>
-                                                    <Users className="w-3 h-3" />
-                                                    {item.othersCount} Match
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* Family scores inline */}
-                                        {item.familyScores.length > 0 && (
-                                            <div className={styles.familyScores}>
-                                                {item.familyScores.map(fs => {
-                                                    const fsScore = SCORE_OPTIONS.find(s => s.score === fs.score)
-                                                    return (
-                                                        <span key={fs.userId} className={styles.familyScorePill} title={`${fs.displayName}: ${fsScore?.label}`}>
-                                                            {fs.displayName.split(' ')[0]}: {fsScore?.emoji}
-                                                        </span>
-                                                    )
-                                                })}
-                                            </div>
-                                        )}
-
-                                        <div className={styles.actions}>
-                                            <button
-                                                onClick={() => toggleTonight(item)}
-                                                className={`${styles.tonightBtn} ${tonightPicks.has(item.id) ? styles.tonightBtnActive : ''}`}
-                                                title={tonightPicks.has(item.id) ? 'Remove from tonight' : 'Pick for tonight'}
-                                            >
-                                                <Moon className="w-4 h-4" />
-                                                <span>Tonight</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                                                className={`${styles.editBtn} ${isExpanded ? styles.editBtnActive : ''}`}
-                                            >
-                                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                                <span>Edit</span>
-                                            </button>
-                                            <button
-                                                onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(item.title + ' ' + item.year + ' ' + (item.mediaType === 'tv' ? 'tv show' : 'movie') + ' streaming')}`, '_blank')}
-                                                className={styles.actionBtn}
-                                            >
-                                                <ExternalLink className="w-4 h-4" />
-                                                <span>Find</span>
-                                            </button>
+                                        <div className={`${styles.swipeAction} ${styles.swipeActionRight}`}>
+                                            <Moon className="w-6 h-6" />
+                                            <span>Tonight</span>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Expanded edit panel */}
-                                {isExpanded && (
-                                    <div className={styles.editPanel}>
-                                        {/* Re-rate */}
-                                        <div className={styles.editSection}>
-                                            <span className={styles.editLabel}>Rating</span>
-                                            <div className={styles.scoreRow}>
-                                                {SCORE_OPTIONS.map(opt => (
+                                    <motion.div
+                                        drag="x"
+                                        dragConstraints={{ left: -120, right: 120 }}
+                                        dragElastic={0.4}
+                                        onDragEnd={(_, info) => {
+                                            if (info.offset.x < -100) {
+                                                // Swipe Left -> Nope
+                                                updateScore(item, 0)
+                                            } else if (info.offset.x > 100) {
+                                                // Swipe Right -> Tonight
+                                                if (!isTonight) toggleTonight(item)
+                                            }
+                                        }}
+                                        className={`${styles.card} glass ${isUpdating ? styles.cardUpdating : ''}`}
+                                    >
+                                        <div className={styles.cardMain}>
+                                            <div
+                                                className={styles.poster}
+                                                style={{ backgroundImage: `url(${item.image})` }}
+                                            />
+                                            <div className={styles.info}>
+                                                <div className={styles.movieHeader}>
+                                                    <h3 className={styles.movieTitle}>{item.title}</h3>
+                                                    <span className={styles.year}>
+                                                        {item.year} · {item.mediaType === 'tv' ? 'TV' : 'Movie'}
+                                                        {item.runtime > 0 && ` · ${item.runtime}m`}
+                                                    </span>
+                                                </div>
+
+                                                <div className={styles.pills}>
+                                                    {/* Current rating badge */}
+                                                    <span className={`${styles.pill} ${styles.pillRating}`}>
+                                                        {currentScore?.emoji} {currentScore?.label}
+                                                    </span>
+
+                                                    {/* Status badge */}
+                                                    {item.status !== 'swiped' && (
+                                                        <span className={`${styles.pill} ${item.status === 'watching' ? styles.pillWatching : styles.pillWatched}`}>
+                                                            {item.status === 'watching' ? <Play className="w-3 h-3 fill-current" /> : <Check className="w-3 h-3" />}
+                                                            {item.status === 'watching' ? 'Watching' : 'Watched'}
+                                                        </span>
+                                                    )}
+
+                                                    {isTonight && (
+                                                        <span className={`${styles.pill} ${styles.pillTonight}`}>
+                                                            <Moon className="w-3 h-3 fill-current" /> Tonight
+                                                        </span>
+                                                    )}
+
+                                                    {item.othersCount > 0 && (
+                                                        <span className={`${styles.pill} ${styles.pillMatch}`}>
+                                                            <Users className="w-3 h-3" />
+                                                            {item.othersCount} Match
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Family scores inline */}
+                                                {item.familyScores.length > 0 && (
+                                                    <div className={styles.familyScores}>
+                                                        {item.familyScores.map(fs => {
+                                                            const fsScore = SCORE_OPTIONS.find(s => s.score === fs.score)
+                                                            return (
+                                                                <span key={fs.userId} className={styles.familyScorePill} title={`${fs.displayName}: ${fsScore?.label}`}>
+                                                                    {fs.displayName.split(' ')[0]}: {fsScore?.emoji}
+                                                                </span>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
+
+                                                <div className={styles.actions}>
                                                     <button
-                                                        key={opt.score}
-                                                        onClick={() => updateScore(item, opt.score)}
-                                                        className={`${styles.scoreBtn} ${item.myScore === opt.score ? styles.scoreBtnActive : ''}`}
-                                                        disabled={isUpdating}
+                                                        onClick={() => updateStatus(item, item.status === 'watching' ? 'swiped' : 'watching')}
+                                                        className={`${styles.watchingBtn} ${item.status === 'watching' ? styles.watchingBtnActive : ''}`}
                                                     >
-                                                        <span className={styles.scoreEmoji}>{opt.emoji}</span>
-                                                        <span className={styles.scoreLabel}>{opt.label}</span>
+                                                        <Eye className="w-4 h-4" />
+                                                        <span>{item.status === 'watching' ? 'Watching' : 'Watch'}</span>
                                                     </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Status */}
-                                        <div className={styles.editSection}>
-                                            <span className={styles.editLabel}>Status</span>
-                                            <div className={styles.statusRow}>
-                                                {STATUS_OPTIONS.map(opt => (
                                                     <button
-                                                        key={opt.value}
-                                                        onClick={() => updateStatus(item, opt.value)}
-                                                        className={`${styles.statusBtn} ${item.status === opt.value ? styles.statusBtnActive : ''}`}
-                                                        disabled={isUpdating}
+                                                        onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(item.title + ' ' + item.year + ' ' + (item.mediaType === 'tv' ? 'tv show' : 'movie') + ' streaming')}`, '_blank')}
+                                                        className={styles.actionBtn}
                                                     >
-                                                        <opt.icon className="w-3.5 h-3.5" />
-                                                        {opt.label}
+                                                        <ExternalLink className="w-4 h-4" />
+                                                        <span>More</span>
                                                     </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Genres display */}
-                                        {item.genres.length > 0 && (
-                                            <div className={styles.editSection}>
-                                                <span className={styles.editLabel}>Genres</span>
-                                                <div className={styles.genreTags}>
-                                                    {item.genres.map(g => (
-                                                        <span key={g} className={styles.genreTag}>{g}</span>
-                                                    ))}
                                                 </div>
                                             </div>
-                                        )}
-
-                                        {/* Remove */}
-                                        <button
-                                            onClick={() => removeItem(item)}
-                                            className={styles.removeBtn}
-                                            disabled={isUpdating}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                            Remove from list
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    })}
+                                        </div>
+                                    </motion.div>
+                                </div>
+                            )
+                        })}
+                    </AnimatePresence>
                 </div>
             ) : (
                 <div className={styles.empty}>

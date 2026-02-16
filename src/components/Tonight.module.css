@@ -195,9 +195,24 @@
     box-shadow: 0 4px 16px rgba(251, 191, 36, 0.4);
 }
 
+/* ── Overlap Banner ── */
+.overlapBanner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(251, 191, 36, 0.1));
+    border: 1px solid rgba(236, 72, 153, 0.2);
+    border-radius: 16px;
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fce7f3;
+}
+
 /* ── Sections ── */
 .section {
-    margin-bottom: 28px;
+    margin-bottom: 32px;
 }
 
 .sectionTitle {
@@ -207,9 +222,9 @@
     font-size: 0.85rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     color: var(--muted);
-    margin-bottom: 14px;
+    margin-bottom: 16px;
 }
 
 /* ── Pick Cards ── */
@@ -256,10 +271,16 @@
     color: var(--muted);
 }
 
-.pickedBy {
-    font-size: 0.7rem;
-    color: #fbbf24;
-    font-weight: 600;
+.matchBadge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: #fbbf24;
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: 800;
+    margin-top: 4px;
+    text-transform: uppercase;
 }
 
 /* ── Pick Actions ── */

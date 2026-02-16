@@ -15,9 +15,9 @@ export async function GET(request: Request) {
     const client = supabaseAdmin || supabase
 
     try {
-        const cutoff = new Date(Date.now() - TWELVE_HOURS_MS).toISOString()
+        const cutoff = new Date(Date.now() - (48 * 60 * 60 * 1000)).toISOString()
 
-        // Get all tonight picks for the group that are less than 12 hours old
+        // Get all tonight picks for the group from the last 48 hours
         const { data: picks, error } = await client
             .from('tonight_picks')
             .select('*')
@@ -58,6 +58,7 @@ export async function GET(request: Request) {
                         rating: details.vote_average || 0,
                         pickedBy: entry.userIds,
                         isOverlap: entry.userIds.length > 1,
+                        createdAt: picks.find(p => p.movie_id === entry.movieId)?.created_at
                     }
                 } catch {
                     return null

@@ -677,6 +677,93 @@
 }
 
 /* ── Empty State ── */
+.swipeRow {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.swipeBackground {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 20px;
+    padding: 0 24px;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.swipeAction {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.swipeActionLeft {
+    background: #ef4444;
+    /* Red for delete/nope */
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 140px;
+    justify-content: center;
+}
+
+.swipeActionRight {
+    background: #fbbf24;
+    /* Yellow for tonight */
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 140px;
+    justify-content: center;
+}
+
+.card {
+    position: relative;
+    z-index: 1;
+    border-radius: 20px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.watchingBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--muted);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s;
+}
+
+.watchingBtnActive {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #60a5fa;
+}
+
+.pillTonight {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
 .empty {
     text-align: center;
     padding: 60px 0;
