@@ -55,17 +55,22 @@ export const WatchlistCard = ({
     const x = useMotionValue(0)
 
     // Swipe LEFT (negative x) -> Reveals RIGHT side (Nope/Red)
-    // We want Red to appear when x < 0.
     const nopeOpacity = useTransform(x, [-50, -100], [0, 1])
 
     // Swipe RIGHT (positive x) -> Reveals LEFT side (Tonight/Yellow)
-    // We want Yellow to appear when x > 0.
     const tonightOpacity = useTransform(x, [50, 100], [0, 1])
 
     const currentScore = SCORE_OPTIONS.find(s => s.score === item.myScore)
 
     return (
-        <div className={styles.swipeRow}>
+        <motion.div
+            className={styles.swipeRow}
+            layout
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+            transition={{ duration: 0.2 }}
+        >
             {/* Action Backgrounds */}
             <div className={styles.swipeBackground}>
                 {/* Right Side (Nope) - Revealed by swiping LEFT */}
@@ -89,8 +94,8 @@ export const WatchlistCard = ({
 
             <motion.div
                 drag="x"
-                dragConstraints={{ left: -120, right: 120 }}
-                dragElastic={0.4}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.6}
                 style={{ x }}
                 onDragEnd={(_, info) => {
                     if (info.offset.x < -100) {
@@ -178,6 +183,6 @@ export const WatchlistCard = ({
                     </div>
                 </div>
             </motion.div>
-        </div>
+        </motion.div>
     )
 }

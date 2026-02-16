@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { BookMarked, Play, Check, Film, Tv, Filter, X, Clock, Star, Baby, SlidersHorizontal, Users } from 'lucide-react'
+import { BookMarked, Play, Check, Filter, X, Clock, Star, SlidersHorizontal, Users } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { WatchlistCard } from './WatchlistCard'
 import styles from './Watchlist.module.css'
@@ -239,7 +239,14 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
 
     const filteredItems = items.filter(i => {
         if (filters.status !== 'all' && i.status !== filters.status) return false
-        if (filters.myScore !== null && i.myScore !== filters.myScore) return false
+
+        // Filter by score. If no specific score filter is set, hide "Nope" (0) items by default.
+        if (filters.myScore !== null) {
+            if (i.myScore !== filters.myScore) return false
+        } else {
+            if (i.myScore === 0) return false
+        }
+
         if (filters.mediaType !== 'all' && i.mediaType !== filters.mediaType) return false
         if (filters.genres.length > 0 && !filters.genres.some(g => i.genres.includes(g))) return false
         if (filters.minTmdbRating > 0 && i.tmdbRating < filters.minTmdbRating) return false
