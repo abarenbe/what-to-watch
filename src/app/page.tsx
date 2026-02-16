@@ -331,9 +331,13 @@ export default function Home() {
   const [showSetup, setShowSetup] = useState(false)
 
   // Trigger setup if needed (but only once loaded)
+  // Guard: profile must be non-null (fully fetched) before deciding.
+  // Without this, a transient null profile during token refresh triggers setup
+  // for users who already have a name.
   useEffect(() => {
-    if (!authLoading && user && (!profile?.display_name || groups.length === 0)) {
-      setShowSetup(true)
+    if (!authLoading && user && profile !== null) {
+      const needsSetup = !profile.display_name || groups.length === 0
+      setShowSetup(needsSetup)
     }
   }, [authLoading, user, profile, groups.length])
 

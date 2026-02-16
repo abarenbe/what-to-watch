@@ -1,7 +1,7 @@
 'use client'
 
-import React from 'react'
-import { motion, useMotionValue, useTransform } from 'framer-motion'
+import React, { useState } from 'react'
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { Trash2, Moon, Play, Check, Users, ExternalLink, Eye } from 'lucide-react'
 import styles from './Watchlist.module.css'
 
@@ -53,30 +53,73 @@ export const WatchlistCard = ({
     onToggleTonight
 }: WatchlistCardProps) => {
     const x = useMotionValue(0)
+    const [swiping, setSwiping] = useState(false)
+
+    // Subtle rotation follows drag direction
+    const rotate = useTransform(x, [-200, 0, 200], [-3, 0, 3])
 
     // Swipe LEFT (negative x) -> Reveals RIGHT side (Nope/Red)
-    const nopeOpacity = useTransform(x, [-50, -100], [0, 1])
+    const nopeOpacity = useTransform(x, [-40, -100], [0, 1])
+    const nopeScale = useTransform(x, [-40, -100, -140], [0.6, 1, 1.15])
 
     // Swipe RIGHT (positive x) -> Reveals LEFT side (Tonight/Yellow)
-    const tonightOpacity = useTransform(x, [50, 100], [0, 1])
+    const tonightOpacity = useTransform(x, [40, 100], [0, 1])
+    const tonightScale = useTransform(x, [40, 100, 140], [0.6, 1, 1.15])
 
     const currentScore = SCORE_OPTIONS.find(s => s.score === item.myScore)
+
+    const handleDragEnd = (_: unknown, info: { offset: { x: number }, velocity: { x: number } }) => {
+        const threshold = 100
+        const velocityThreshold = 500
+
+        // Allow either distance OR velocity to trigger the action
+        const sweptLeft = info.offset.x < -threshold || info.velocity.x < -velocityThreshold
+        const sweptRight = info.offset.x > threshold || info.velocity.x > velocityThreshold
+
+        if (sweptLeft) {
+            setSwiping(true)
+            // Animate card off-screen to the left, then trigger action
+            animate(x, -400, {
+                type: 'spring',
+                stiffness: 300,
+                damping: 30,
+                onComplete: () => onUpdateScore(item, 0),
+            })
+        } else if (sweptRight) {
+            if (!isTonight) {
+                setSwiping(true)
+                // Animate card off-screen to the right, then trigger action
+                animate(x, 400, {
+                    type: 'spring',
+                    stiffness: 300,
+                    damping: 30,
+                    onComplete: () => onToggleTonight(item),
+                })
+            } else {
+                // Already tonight - spring back
+                animate(x, 0, { type: 'spring', stiffness: 400, damping: 25 })
+            }
+        } else {
+            // Snap back with a satisfying spring
+            animate(x, 0, { type: 'spring', stiffness: 400, damping: 25 })
+        }
+    }
 
     return (
         <motion.div
             className={styles.swipeRow}
             layout
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0, transition: { duration: 0.25, ease: 'easeInOut' } }}
+            transition={{ duration: 0.25 }}
         >
             {/* Action Backgrounds */}
             <div className={styles.swipeBackground}>
                 {/* Right Side (Nope) - Revealed by swiping LEFT */}
                 <motion.div
                     className={`${styles.swipeAction} ${styles.swipeActionLeft}`}
-                    style={{ opacity: nopeOpacity }}
+                    style={{ opacity: nopeOpacity, scale: nopeScale }}
                 >
                     <Trash2 className="w-6 h-6" />
                     <span>Nope</span>
@@ -85,7 +128,7 @@ export const WatchlistCard = ({
                 {/* Left Side (Tonight) - Revealed by swiping RIGHT */}
                 <motion.div
                     className={`${styles.swipeAction} ${styles.swipeActionRight}`}
-                    style={{ opacity: tonightOpacity }}
+                    style={{ opacity: tonightOpacity, scale: tonightScale }}
                 >
                     <Moon className="w-6 h-6" />
                     <span>Tonight</span>
@@ -93,19 +136,12 @@ export const WatchlistCard = ({
             </div>
 
             <motion.div
-                drag="x"
+                drag={swiping ? false : 'x'}
                 dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.6}
-                style={{ x }}
-                onDragEnd={(_, info) => {
-                    if (info.offset.x < -100) {
-                        // Swipe Left -> Nope
-                        onUpdateScore(item, 0)
-                    } else if (info.offset.x > 100) {
-                        // Swipe Right -> Tonight
-                        if (!isTonight) onToggleTonight(item)
-                    }
-                }}
+                dragElastic={0.7}
+                style={{ x, rotate }}
+                onDragEnd={handleDragEnd}
+                whileDrag={{ cursor: 'grabbing' }}
                 className={`${styles.card} glass ${isUpdating ? styles.cardUpdating : ''}`}
             >
                 <div className={styles.cardMain}>
