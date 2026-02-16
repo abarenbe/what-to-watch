@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { BookMarked, Users, ExternalLink, Play, Trash2, Check, Moon, Film, Tv, Filter, X, Clock, Star, Baby, SlidersHorizontal, Eye } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { BookMarked, Play, Check, Film, Tv, Filter, X, Clock, Star, Baby, SlidersHorizontal, Users } from 'lucide-react'
+import { AnimatePresence } from 'framer-motion'
+import { WatchlistCard } from './WatchlistCard'
 import styles from './Watchlist.module.css'
 
 interface FamilyScore {
@@ -636,118 +637,17 @@ export const Watchlist = ({ userId, groupId }: { userId: string, groupId: string
             {sortedItems.length > 0 ? (
                 <div className={styles.grid}>
                     <AnimatePresence>
-                        {sortedItems.map((item) => {
-                            const isUpdating = updatingId === item.id
-                            const currentScore = SCORE_OPTIONS.find(s => s.score === item.myScore)
-                            const isTonight = tonightPicks.has(item.id)
-
-                            return (
-                                <div key={item.id} className={styles.swipeRow}>
-                                    {/* Action Backgrounds */}
-                                    <div className={styles.swipeBackground}>
-                                        <div className={`${styles.swipeAction} ${styles.swipeActionLeft}`}>
-                                            <Trash2 className="w-6 h-6" />
-                                            <span>Nope</span>
-                                        </div>
-                                        <div className={`${styles.swipeAction} ${styles.swipeActionRight}`}>
-                                            <Moon className="w-6 h-6" />
-                                            <span>Tonight</span>
-                                        </div>
-                                    </div>
-
-                                    <motion.div
-                                        drag="x"
-                                        dragConstraints={{ left: -120, right: 120 }}
-                                        dragElastic={0.4}
-                                        onDragEnd={(_, info) => {
-                                            if (info.offset.x < -100) {
-                                                // Swipe Left -> Nope
-                                                updateScore(item, 0)
-                                            } else if (info.offset.x > 100) {
-                                                // Swipe Right -> Tonight
-                                                if (!isTonight) toggleTonight(item)
-                                            }
-                                        }}
-                                        className={`${styles.card} glass ${isUpdating ? styles.cardUpdating : ''}`}
-                                    >
-                                        <div className={styles.cardMain}>
-                                            <div
-                                                className={styles.poster}
-                                                style={{ backgroundImage: `url(${item.image})` }}
-                                            />
-                                            <div className={styles.info}>
-                                                <div className={styles.movieHeader}>
-                                                    <h3 className={styles.movieTitle}>{item.title}</h3>
-                                                    <span className={styles.year}>
-                                                        {item.year} · {item.mediaType === 'tv' ? 'TV' : 'Movie'}
-                                                        {item.runtime > 0 && ` · ${item.runtime}m`}
-                                                    </span>
-                                                </div>
-
-                                                <div className={styles.pills}>
-                                                    {/* Current rating badge */}
-                                                    <span className={`${styles.pill} ${styles.pillRating}`}>
-                                                        {currentScore?.emoji} {currentScore?.label}
-                                                    </span>
-
-                                                    {/* Status badge */}
-                                                    {item.status !== 'swiped' && (
-                                                        <span className={`${styles.pill} ${item.status === 'watching' ? styles.pillWatching : styles.pillWatched}`}>
-                                                            {item.status === 'watching' ? <Play className="w-3 h-3 fill-current" /> : <Check className="w-3 h-3" />}
-                                                            {item.status === 'watching' ? 'Watching' : 'Watched'}
-                                                        </span>
-                                                    )}
-
-                                                    {isTonight && (
-                                                        <span className={`${styles.pill} ${styles.pillTonight}`}>
-                                                            <Moon className="w-3 h-3 fill-current" /> Tonight
-                                                        </span>
-                                                    )}
-
-                                                    {item.othersCount > 0 && (
-                                                        <span className={`${styles.pill} ${styles.pillMatch}`}>
-                                                            <Users className="w-3 h-3" />
-                                                            {item.othersCount} Match
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Family scores inline */}
-                                                {item.familyScores.length > 0 && (
-                                                    <div className={styles.familyScores}>
-                                                        {item.familyScores.map(fs => {
-                                                            const fsScore = SCORE_OPTIONS.find(s => s.score === fs.score)
-                                                            return (
-                                                                <span key={fs.userId} className={styles.familyScorePill} title={`${fs.displayName}: ${fsScore?.label}`}>
-                                                                    {fs.displayName.split(' ')[0]}: {fsScore?.emoji}
-                                                                </span>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                )}
-
-                                                <div className={styles.actions}>
-                                                    <button
-                                                        onClick={() => updateStatus(item, item.status === 'watching' ? 'swiped' : 'watching')}
-                                                        className={`${styles.watchingBtn} ${item.status === 'watching' ? styles.watchingBtnActive : ''}`}
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                        <span>{item.status === 'watching' ? 'Watching' : 'Watch'}</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(item.title + ' ' + item.year + ' ' + (item.mediaType === 'tv' ? 'tv show' : 'movie') + ' streaming')}`, '_blank')}
-                                                        className={styles.actionBtn}
-                                                    >
-                                                        <ExternalLink className="w-4 h-4" />
-                                                        <span>More</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                </div>
-                            )
-                        })}
+                        {sortedItems.map((item) => (
+                            <WatchlistCard
+                                key={item.id}
+                                item={item}
+                                isUpdating={updatingId === item.id}
+                                isTonight={tonightPicks.has(item.id)}
+                                onUpdateScore={updateScore}
+                                onUpdateStatus={updateStatus}
+                                onToggleTonight={toggleTonight}
+                            />
+                        ))}
                     </AnimatePresence>
                 </div>
             ) : (
